@@ -33,7 +33,7 @@
 | 3 | 3.1 | SalesSettings tax provider columns | inline | done | — |
 | 3 | 3.2 | Tax provider settings command and cache | inline | done | — |
 | 3 | 3.3 | Tax provider list and settings routes | inline | done | — |
-| 3 | 3.4 | Sales configuration tax provider section | inline | todo | — |
+| 3 | 3.4 | Sales configuration tax provider section | inline | done | — |
 | 3 | 3.5 | Provider selection, integration state and credentials | inline | todo | — |
 | 3 | 3.6 | Failure event, error reporting and failure record | inline | todo | — |
 | 3 | 3.7 | Acceptance tests 2 to 5 | inline | todo | — |
