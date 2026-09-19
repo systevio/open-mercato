@@ -105,6 +105,41 @@ export const salesEditingSettingsSchema = scoped.extend({
 
 export type SalesEditingSettingsInput = z.infer<typeof salesEditingSettingsSchema>
 
+/**
+ * An AddressValue-shaped ship from address. Kept loose on purpose: the fields
+ * a tax engine needs vary by jurisdiction, and a stricter shape here would
+ * reject a perfectly usable address for a country the validator did not
+ * anticipate.
+ */
+export const shipFromAddressSchema = z.object({
+  addressLine1: z.string().trim().max(500).nullable().optional(),
+  addressLine2: z.string().trim().max(500).nullable().optional(),
+  buildingNumber: z.string().trim().max(60).nullable().optional(),
+  flatNumber: z.string().trim().max(60).nullable().optional(),
+  city: z.string().trim().max(191).nullable().optional(),
+  region: z.string().trim().max(191).nullable().optional(),
+  postalCode: z.string().trim().max(60).nullable().optional(),
+  country: z.string().trim().max(60).nullable().optional(),
+})
+
+export const TAX_PROVIDER_TIMEOUT_MIN_MS = 1000
+export const TAX_PROVIDER_TIMEOUT_MAX_MS = 30_000
+
+export const salesTaxProviderSettingsSchema = scoped.extend({
+  providerKey: z.string().trim().min(1).max(120),
+  providerSettings: jsonRecord.nullable().optional(),
+  shipFromAddress: shipFromAddressSchema.nullable().optional(),
+  timeoutMs: z.coerce
+    .number()
+    .int()
+    .min(TAX_PROVIDER_TIMEOUT_MIN_MS)
+    .max(TAX_PROVIDER_TIMEOUT_MAX_MS)
+    .nullable()
+    .optional(),
+})
+
+export type SalesTaxProviderSettingsInput = z.infer<typeof salesTaxProviderSettingsSchema>
+
 export const channelCreateSchema = scoped.extend({
   name: z.string().trim().min(1).max(255),
   code: channelCodeSchema,

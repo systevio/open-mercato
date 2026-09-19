@@ -31,7 +31,7 @@
 | 2 | 2.7 | Document detail: status badge, breakdown, banner | inline | done | — |
 | 2 | 2.8 | Order lifecycle tax block and acceptance test 1 | inline | done | — |
 | 3 | 3.1 | SalesSettings tax provider columns | inline | done | — |
-| 3 | 3.2 | Tax provider settings command and cache | inline | todo | — |
+| 3 | 3.2 | Tax provider settings command and cache | inline | done | — |
 | 3 | 3.3 | Tax provider list and settings routes | inline | todo | — |
 | 3 | 3.4 | Sales configuration tax provider section | inline | todo | — |
 | 3 | 3.5 | Provider selection, integration state and credentials | inline | todo | — |
