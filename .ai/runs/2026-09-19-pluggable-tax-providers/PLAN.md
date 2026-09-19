@@ -36,7 +36,7 @@
 | 3 | 3.4 | Sales configuration tax provider section | inline | done | — |
 | 3 | 3.5 | Provider selection, integration state and credentials | inline | done | — |
 | 3 | 3.6 | Failure event, error reporting and failure record | inline | done | — |
-| 3 | 3.7 | Acceptance tests 2 to 5 | inline | todo | — |
+| 3 | 3.7 | Acceptance tests 2 to 5 | inline | done | — |
 | 4 | 4.1 | Customer tax exemption columns | inline | todo | — |
 | 4 | 4.2 | Customer exemption validators, commands and forms | inline | todo | — |
 | 4 | 4.3 | Exemption facts into the customer snapshot and the contract | inline | todo | — |
