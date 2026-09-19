@@ -56,3 +56,11 @@
 - The only failing tests in the repo are the 5 pre-existing `@open-mercato/cli` environment tests, reproduced on `origin/develop`.
 - Correction landed in Step 4.3 worth a reviewer's attention: `resolveCustomerSnapshot` was reading the customer with a plain `em.findOne`, writing ciphertext into the already-encrypted `customer_snapshot` column. It now uses `findOneWithDecryption`.
 - Next: the `om-auto-review-pr` pass, then the summary comment. The PR stays a draft.
+
+## 2026-09-19T18:20:00Z — review pass complete, run finished
+- `om-auto-review-pr 4 --autofix` ran as a self-review (the automation authored the PR). Two findings, both fixed in `69ac7b046`.
+- **Blocker found and fixed:** the tax stage derived a charge's id from the FILTERED adjustment index when building the request but the UNFILTERED index when applying the result. With a line-scoped adjustment ahead of an anonymous order-scoped one, the two disagreed and the provider's tax for that charge was silently discarded — no error, no message, no fallback status, just a short document. Both sides now read one map built once. The regression test was verified to fail against the pre-fix code before the fix was kept.
+- **Minor found and fixed:** the `sales.providers.tax.*` keys were declared but unused, so built in provider names rendered as raw English in every locale on both the settings select and the document detail page.
+- Labels applied: `review`, `feature`, `priority-medium`, `risk-high`, `needs-qa`. No `qa-approved` — that is a maintainer's to give. Rationale comment posted.
+- PR body rewritten to state the delivered scope, the Phase 5 deferral, the compatibility position and both reasons it stays a draft. Spec PR #3 carries the idempotent implementation-PR link.
+- The PR **remains a draft**, as the owner instructed and as the spec's Q7 assumptions guard requires.

@@ -1,10 +1,10 @@
 # Handoff — 2026-09-19-pluggable-tax-providers
 
-**Last updated:** 2026-09-19T17:40:00Z
+**Last updated:** 2026-09-19T18:20:00Z
 **Branch:** feat/pluggable-tax-providers
 **PR:** #4 (draft, base `develop`)
 **Current phase/step:** all 31 in-scope Steps done; final gate passed
-**Last commit:** b07a39ed4 (Step 6.4)
+**Last commit:** 69ac7b046 (review fixes)
 
 ## What just happened
 - **All 31 in-scope Steps are complete** (Phases 1, 2, 3, 4 and 6). Phase 5 stays deferred.
@@ -13,8 +13,10 @@
 - Both migrations were verified against a real database.
 
 ## Next concrete action
-- `om-auto-review-pr 4 --autofix` (the single authoritative review pass), then the summary comment.
-- The PR **stays a draft** per the owner and per the spec's Q7 assumptions guard.
+- **None for this agent.** The run is complete: all 31 in-scope Steps landed, the full gate passed,
+  the review pass ran and its two findings are fixed, labels and comments are posted.
+- What remains is a **human decision**: confirm or change the spec's Q7 row, then flip the PR out of
+  draft. Resuming would only be needed if Phase 5 is un-deferred.
 
 ## Blockers / open questions
 - **Scope:** Phase 5 is deferred by the owner and must NOT be implemented. Steps 5.1-5.5 are
