@@ -19,6 +19,7 @@
   "sales.audit.document_addresses.create": "문서 주소 추가",
   "sales.audit.document_addresses.delete": "문서 주소 제거",
   "sales.audit.document_addresses.update": "문서 주소 수정",
+  "sales.audit.documents.recalculateTax": "문서 세금 재계산",
   "sales.audit.invoices.create": "송장 생성",
   "sales.audit.invoices.delete": "송장 삭제",
   "sales.audit.invoices.update": "송장 수정",

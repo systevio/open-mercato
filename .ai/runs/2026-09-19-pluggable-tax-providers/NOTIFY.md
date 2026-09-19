@@ -48,3 +48,11 @@
 - Decision: `tax_info` is detail-only in the documents API projection, beside the other large JSONB snapshots, but still serializes as `null` on the grid path so the response key and its OpenAPI schema stay stable.
 - Decision: the source-scan guards now assert relationships rather than fixed counts, so adding a recalculating command does not break them.
 - Remaining in scope: Phase 4 (4.1-4.4) and Phase 6 (6.1-6.4). Phase 5 stays deferred.
+
+## 2026-09-19T17:40:00Z — all in-scope steps complete, final gate passed
+- Steps 4.1-4.4 and 6.1-6.4 landed. **All 31 implementable Steps are done**; Phase 5 stays deferred per the owner.
+- Full configured gate run in order and recorded in `final-gate-checks.md`. `@open-mercato/core`: 1938 suites / 17,454 tests green. `yarn build:app` builds.
+- The gate earned its keep: `yarn i18n:check-usage` caught a genuinely missing key in this branch (`sales.audit.documents.recalculateTax`, the recalculate command's audit label). Added in five locales; the check now reports zero missing.
+- The only failing tests in the repo are the 5 pre-existing `@open-mercato/cli` environment tests, reproduced on `origin/develop`.
+- Correction landed in Step 4.3 worth a reviewer's attention: `resolveCustomerSnapshot` was reading the customer with a plain `em.findOne`, writing ciphertext into the already-encrypted `customer_snapshot` column. It now uses `findOneWithDecryption`.
+- Next: the `om-auto-review-pr` pass, then the summary comment. The PR stays a draft.

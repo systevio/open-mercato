@@ -19,6 +19,7 @@
   "sales.audit.document_addresses.create": "Dodaj adres dokumentu",
   "sales.audit.document_addresses.delete": "Usuń adres dokumentu",
   "sales.audit.document_addresses.update": "Zaktualizuj adres dokumentu",
+  "sales.audit.documents.recalculateTax": "Przelicz podatek dokumentu",
   "sales.audit.invoices.create": "Utwórz fakturę",
   "sales.audit.invoices.delete": "Usuń fakturę",
   "sales.audit.invoices.update": "Zaktualizuj fakturę",

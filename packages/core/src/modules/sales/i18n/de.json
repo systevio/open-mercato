@@ -19,6 +19,7 @@
   "sales.audit.document_addresses.create": "Dokumentadresse hinzufügen",
   "sales.audit.document_addresses.delete": "Dokumentadresse entfernen",
   "sales.audit.document_addresses.update": "Dokumentadresse aktualisieren",
+  "sales.audit.documents.recalculateTax": "Dokumentsteuer neu berechnen",
   "sales.audit.invoices.create": "Rechnung erstellen",
   "sales.audit.invoices.delete": "Rechnung löschen",
   "sales.audit.invoices.update": "Rechnung aktualisieren",

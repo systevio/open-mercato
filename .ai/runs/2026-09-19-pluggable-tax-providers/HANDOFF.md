@@ -1,26 +1,20 @@
 # Handoff — 2026-09-19-pluggable-tax-providers
 
-**Last updated:** 2026-09-19T15:10:00Z
+**Last updated:** 2026-09-19T17:40:00Z
 **Branch:** feat/pluggable-tax-providers
 **PR:** #4 (draft, base `develop`)
-**Current phase/step:** Phase 4 Step 4.1
-**Last commit:** 849de4ded (Step 3.7)
+**Current phase/step:** all 31 in-scope Steps done; final gate passed
+**Last commit:** b07a39ed4 (Step 6.4)
 
 ## What just happened
-- **Phases 1, 2 and 3 are complete** (Steps 1.1 to 3.7, 23 of the 31 in scope). Checkpoints 1 and 2
-  are recorded in `checkpoint-1-checks.md` and `checkpoint-2-checks.md`.
-- Green: `yarn build:packages`, `yarn generate` (no drift), `yarn typecheck`, both i18n checks, and
-  **124 sales suites / 984 tests**.
-- The document migration was verified against a real empty database (20 columns, 4 partial indexes,
-  followed by a successful `yarn initialize`).
+- **All 31 in-scope Steps are complete** (Phases 1, 2, 3, 4 and 6). Phase 5 stays deferred.
+- The full configured gate passed — see `final-gate-checks.md`. `@open-mercato/core` is green at
+  1938 suites / 17,454 tests; `yarn build:app` builds; zero missing i18n keys.
+- Both migrations were verified against a real database.
 
 ## Next concrete action
-- **Step 4.1:** add `is_tax_exempt`, `tax_exemption_code` and `tax_exemption_certificate` to
-  `CustomerEntity` in `packages/core/src/modules/customers/data/entities.ts`; then `yarn db:generate`,
-  keep only the customers migration, update its `.snapshot-open-mercato.json`, and declare
-  `tax_exemption_certificate` in `customers/encryption.ts`.
-- Then 4.2 (validators, commands, forms, i18n), 4.3 (`resolveCustomerSnapshot` carries the block),
-  4.4 (tests), and Phase 6 (6.1–6.4, documentation and compatibility notes).
+- `om-auto-review-pr 4 --autofix` (the single authoritative review pass), then the summary comment.
+- The PR **stays a draft** per the owner and per the spec's Q7 assumptions guard.
 
 ## Blockers / open questions
 - **Scope:** Phase 5 is deferred by the owner and must NOT be implemented. Steps 5.1-5.5 are
