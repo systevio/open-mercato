@@ -39,3 +39,12 @@
   - `yarn initialize` then completed on the migrated schema, so the migration does not break a first run.
 - **Integration tests and UI screenshots could NOT be captured in this worktree.** `omw up --fresh` reported "ready in 5s" but left the database empty and did not wire `apps/mercato/.env` to it; after completing the migration and initialization by hand, the running dev server still could not authenticate the seeded admin (the encrypted `users.email` values do not match the key the running process holds). This is worktree provisioning, not the change: the change's own unit, typecheck and build coverage is green, and the migration was verified directly against Postgres. Noted on the PR rather than silently skipped.
 - `apps/mercato/.env` was temporarily pointed at the isolated database to run the migration and has been restored. It is gitignored and never staged.
+
+## 2026-09-19T15:10:00Z — checkpoint 2, phases 2 and 3 closed
+- Steps 2.1 to 3.7 landed, one commit each. `checkpoint-2-checks.md` records the targeted gate.
+- Green: build:packages, generate (no drift), typecheck, i18n sync and hardcoded checks, 124 sales suites / 984 tests.
+- Decision: `applyTaxColumns` leaves the columns alone for a calculation that ran no tax stage, rather than clearing them. A third party caller of `calculateDocumentTotals` produces exactly that, and wiping a previous provider's result would be a silent data loss.
+- Decision: the quote to order conversion now carries the quote's whole tax result instead of resetting `taxStrategyKey`, which would have left an order holding a `tax_info` the key no longer names.
+- Decision: `tax_info` is detail-only in the documents API projection, beside the other large JSONB snapshots, but still serializes as `null` on the grid path so the response key and its OpenAPI schema stay stable.
+- Decision: the source-scan guards now assert relationships rather than fixed counts, so adding a recalculating command does not break them.
+- Remaining in scope: Phase 4 (4.1-4.4) and Phase 6 (6.1-6.4). Phase 5 stays deferred.

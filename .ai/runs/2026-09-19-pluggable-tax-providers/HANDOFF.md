@@ -1,23 +1,26 @@
 # Handoff — 2026-09-19-pluggable-tax-providers
 
-**Last updated:** 2026-09-19T11:05:00Z
+**Last updated:** 2026-09-19T15:10:00Z
 **Branch:** feat/pluggable-tax-providers
 **PR:** #4 (draft, base `develop`)
-**Current phase/step:** Phase 2 Step 2.1
-**Last commit:** c7fdd2b63 (Step 1.8)
+**Current phase/step:** Phase 4 Step 4.1
+**Last commit:** 849de4ded (Step 3.7)
 
 ## What just happened
-- **Phase 1 is complete** (Steps 1.1 to 1.8). Checkpoint 1 recorded in `checkpoint-1-checks.md`.
-- The contract, the registry, the `TaxInfo` schemas, the context assembly, the `table-rates` and
-  `fixed-rate` providers, the tax stage and all eighteen recalculation sites are landed and green:
-  116 sales suites / 897 tests, `yarn typecheck` and `yarn build:packages` clean.
-- Nothing is persisted yet. The result lives in `calculation.metadata.tax`; Phase 2 adds the columns.
+- **Phases 1, 2 and 3 are complete** (Steps 1.1 to 3.7, 23 of the 31 in scope). Checkpoints 1 and 2
+  are recorded in `checkpoint-1-checks.md` and `checkpoint-2-checks.md`.
+- Green: `yarn build:packages`, `yarn generate` (no drift), `yarn typecheck`, both i18n checks, and
+  **124 sales suites / 984 tests**.
+- The document migration was verified against a real empty database (20 columns, 4 partial indexes,
+  followed by a successful `yarn initialize`).
 
 ## Next concrete action
-- **Step 2.1:** add the tax columns to `SalesInvoice` and `SalesCreditMemo` (five each), the four
-  missing ones to `SalesQuote` (`tax_info` already exists) and the three missing ones to `SalesOrder`
-  in `data/entities.ts`; then `yarn db:generate`, keep only the sales migration, and update
-  `migrations/.snapshot-open-mercato.json`.
+- **Step 4.1:** add `is_tax_exempt`, `tax_exemption_code` and `tax_exemption_certificate` to
+  `CustomerEntity` in `packages/core/src/modules/customers/data/entities.ts`; then `yarn db:generate`,
+  keep only the customers migration, update its `.snapshot-open-mercato.json`, and declare
+  `tax_exemption_certificate` in `customers/encryption.ts`.
+- Then 4.2 (validators, commands, forms, i18n), 4.3 (`resolveCustomerSnapshot` carries the block),
+  4.4 (tests), and Phase 6 (6.1–6.4, documentation and compatibility notes).
 
 ## Blockers / open questions
 - **Scope:** Phase 5 is deferred by the owner and must NOT be implemented. Steps 5.1-5.5 are
