@@ -13,7 +13,7 @@
 
 | Phase | Step | Title | Exec | Status | Commit |
 |-------|------|-------|------|--------|--------|
-| 1 | 1.1 | Tax provider contract types | inline | todo | — |
+| 1 | 1.1 | Tax provider contract types | inline | done | 6188db8d4 |
 | 1 | 1.2 | Tax provider registry | inline | todo | — |
 | 1 | 1.3 | TaxInfo and result schemas | inline | todo | — |
 | 1 | 1.4 | Tax document context assembly | inline | todo | — |
