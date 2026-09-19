@@ -943,6 +943,14 @@ export const invoiceCreateSchema = scoped.extend({
   grandTotalGrossAmount: decimal({ min: 0 }).optional(),
   paidTotalAmount: decimal({ min: 0 }).optional(),
   outstandingAmount: decimal().optional(),
+  // Accepted only when no source document is given: a caller mirroring an
+  // externally taxed document. With an orderId (or invoiceId) present the
+  // result is inherited from the source and these are ignored.
+  taxStrategyKey: z.string().trim().max(120).optional(),
+  taxInfo: jsonRecord.optional(),
+  taxStatus: z.enum(['calculated', 'exempt', 'fallback', 'external']).optional(),
+  taxCalculatedAt: z.coerce.date().optional(),
+  taxTransactionRef: z.string().trim().max(191).optional(),
 })
 
 export const invoiceUpdateSchema = z
@@ -990,6 +998,14 @@ export const creditMemoCreateSchema = scoped.extend({
   taxTotalAmount: decimal({ min: 0 }).optional(),
   grandTotalNetAmount: decimal({ min: 0 }).optional(),
   grandTotalGrossAmount: decimal({ min: 0 }).optional(),
+  // Accepted only when no source document is given: a caller mirroring an
+  // externally taxed document. With an orderId (or invoiceId) present the
+  // result is inherited from the source and these are ignored.
+  taxStrategyKey: z.string().trim().max(120).optional(),
+  taxInfo: jsonRecord.optional(),
+  taxStatus: z.enum(['calculated', 'exempt', 'fallback', 'external']).optional(),
+  taxCalculatedAt: z.coerce.date().optional(),
+  taxTransactionRef: z.string().trim().max(191).optional(),
 })
 
 export const creditMemoUpdateSchema = z

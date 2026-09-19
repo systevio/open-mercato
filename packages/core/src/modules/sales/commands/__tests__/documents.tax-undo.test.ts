@@ -63,8 +63,11 @@ describe('tax columns through command snapshots and undo', () => {
 
   it('carries the quote tax result onto the order on conversion', () => {
     // Before this spec the conversion reset taxStrategyKey to null, which would
-    // now leave an order holding a tax_info the key no longer names.
-    expect(documents).not.toContain('taxStrategyKey: null,')
+    // now leave an order holding a tax_info the key no longer names. The only
+    // remaining `taxStrategyKey: null` is the EMPTY_TAX_COLUMNS constant.
+    const resets = documents.match(/^\s*taxStrategyKey: null,$/gm) ?? []
+    expect(resets.length).toBe(1)
+    expect(documents).toContain('const EMPTY_TAX_COLUMNS: InheritedTaxColumns = {\n  taxStrategyKey: null,')
     expect(documents).toContain('taxStrategyKey: snapshot.quote.taxStrategyKey ?? null,')
     expect(documents).toContain('taxStatus: snapshot.quote.taxStatus ?? null,')
     expect(documents).toContain('taxTransactionRef: snapshot.quote.taxTransactionRef ?? null,')

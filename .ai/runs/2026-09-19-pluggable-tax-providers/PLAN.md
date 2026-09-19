@@ -25,7 +25,7 @@
 | 2 | 2.1 | Tax columns on the four document tables | inline | done | — |
 | 2 | 2.2 | Persist the tax result on quotes and orders | inline | done | — |
 | 2 | 2.3 | Tax columns through command snapshots and undo | inline | done | — |
-| 2 | 2.4 | Invoice and credit memo inheritance | inline | todo | — |
+| 2 | 2.4 | Invoice and credit memo inheritance | inline | done | — |
 | 2 | 2.5 | Expose the tax fields on the document APIs | inline | todo | — |
 | 2 | 2.6 | Recalculate tax command and route | inline | todo | — |
 | 2 | 2.7 | Document detail: status badge, breakdown, banner | inline | todo | — |

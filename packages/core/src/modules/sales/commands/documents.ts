@@ -126,6 +126,7 @@ import type {
   TaxDocumentContext,
 } from "../lib/providers";
 import type { TaxInfo } from "../lib/providers/taxInfo";
+import { parseTaxInfo } from "../lib/providers/taxInfo";
 import { resolveTaxDocumentContext } from "../lib/providers/taxContext";
 import {
   type SalesLineSnapshot,
@@ -3771,6 +3772,78 @@ function applyTaxColumns(
   document.taxStatus = info.status;
   document.taxCalculatedAt = new Date(info.calculatedAt);
   document.taxTransactionRef = info.transaction.reference;
+}
+
+type InheritedTaxColumns = {
+  taxStrategyKey: string | null;
+  taxInfo: Record<string, unknown> | null;
+  taxStatus: string | null;
+  taxCalculatedAt: Date | null;
+  taxTransactionRef: string | null;
+};
+
+const EMPTY_TAX_COLUMNS: InheritedTaxColumns = {
+  taxStrategyKey: null,
+  taxInfo: null,
+  taxStatus: null,
+  taxCalculatedAt: null,
+  taxTransactionRef: null,
+};
+
+/**
+ * Invoices and credit memos take caller-supplied totals — they never
+ * recalculate — so their tax provenance comes from the document they were
+ * raised from. A caller mirroring an externally taxed document supplies the
+ * columns itself and no source is consulted; with a source present the caller's
+ * values are ignored, because an invoice claiming a different provider than the
+ * order it bills is not a state the system should be able to reach.
+ */
+function resolveInheritedTaxColumns(params: {
+  source: SalesOrder | SalesInvoice | null | undefined;
+  sourceNumber: string | null;
+  supplied: {
+    taxStrategyKey?: string | null;
+    taxInfo?: Record<string, unknown> | null;
+    taxStatus?: string | null;
+    taxCalculatedAt?: Date | null;
+    taxTransactionRef?: string | null;
+  };
+}): InheritedTaxColumns {
+  const { source, supplied } = params;
+  if (!source) {
+    return {
+      taxStrategyKey: supplied.taxStrategyKey ?? null,
+      taxInfo: supplied.taxInfo ? cloneJson(supplied.taxInfo) : null,
+      taxStatus: supplied.taxStatus ?? null,
+      taxCalculatedAt: supplied.taxCalculatedAt ?? null,
+      taxTransactionRef: supplied.taxTransactionRef ?? null,
+    };
+  }
+  if (!source.taxInfo && !source.taxStrategyKey) return EMPTY_TAX_COLUMNS;
+
+  const inherited = source.taxInfo ? cloneJson(source.taxInfo) : null;
+  const parsed = inherited ? parseTaxInfo(inherited) : null;
+  const taxInfo = parsed
+    ? ({
+        ...parsed,
+        messages: [
+          ...parsed.messages,
+          {
+            level: 'info' as const,
+            code: 'inherited',
+            text: `Inherited from ${params.sourceNumber ?? 'the source document'}`,
+          },
+        ],
+      } as unknown as Record<string, unknown>)
+    : inherited;
+
+  return {
+    taxStrategyKey: source.taxStrategyKey ?? null,
+    taxInfo,
+    taxStatus: source.taxStatus ?? null,
+    taxCalculatedAt: source.taxCalculatedAt ?? null,
+    taxTransactionRef: source.taxTransactionRef ?? null,
+  };
 }
 
 function applyQuoteTotals(
@@ -9185,8 +9258,9 @@ const createInvoiceCommand: CommandHandler<
     );
 
     // Validate orderId belongs to same org/tenant
+    let sourceOrder: SalesOrder | null = null;
     if (parsed.orderId) {
-      const orderExists = await findOneWithDecryption(
+      sourceOrder = await findOneWithDecryption(
         em,
         SalesOrder,
         {
@@ -9201,10 +9275,15 @@ const createInvoiceCommand: CommandHandler<
           organizationId: parsed.organizationId,
         },
       );
-      if (!orderExists) {
+      if (!sourceOrder) {
         throw new CrudHttpError(400, { error: "Referenced order not found in current scope." });
       }
     }
+    const inheritedTax = resolveInheritedTaxColumns({
+      source: sourceOrder,
+      sourceNumber: sourceOrder?.orderNumber ?? null,
+      supplied: parsed,
+    });
 
     const invoiceId = randomUUID();
     const invoice = em.create(SalesInvoice, {
@@ -9226,6 +9305,7 @@ const createInvoiceCommand: CommandHandler<
       grandTotalGrossAmount: toNumericString(parsed.grandTotalGrossAmount ?? 0),
       paidTotalAmount: toNumericString(parsed.paidTotalAmount ?? 0),
       outstandingAmount: toNumericString(parsed.outstandingAmount ?? 0),
+      ...inheritedTax,
       metadata: parsed.metadata ?? null,
       customFieldSetId: parsed.customFieldSetId ?? null,
       createdAt: new Date(),
@@ -9757,6 +9837,7 @@ const createCreditMemoCommand: CommandHandler<
     );
 
     // Validate orderId belongs to same org/tenant
+    let sourceOrder: SalesOrder | null = null;
     if (parsed.orderId) {
       const orderExists = await findOneWithDecryption(
         em,
@@ -9776,20 +9857,28 @@ const createCreditMemoCommand: CommandHandler<
       if (!orderExists) {
         throw new CrudHttpError(400, { error: "Referenced order not found in current scope." });
       }
+      sourceOrder = orderExists;
     }
 
     // Validate invoiceId belongs to same org/tenant
+    let sourceInvoice: SalesInvoice | null = null;
     if (parsed.invoiceId) {
-      const invoiceExists = await em.findOne(SalesInvoice, {
+      sourceInvoice = await em.findOne(SalesInvoice, {
         id: parsed.invoiceId,
         organizationId: parsed.organizationId,
         tenantId: parsed.tenantId,
         deletedAt: null,
       });
-      if (!invoiceExists) {
+      if (!sourceInvoice) {
         throw new CrudHttpError(400, { error: "Referenced invoice not found in current scope." });
       }
     }
+    // The invoice wins when both are given: it is the document the memo credits.
+    const inheritedTax = resolveInheritedTaxColumns({
+      source: sourceInvoice ?? sourceOrder,
+      sourceNumber: sourceInvoice?.invoiceNumber ?? sourceOrder?.orderNumber ?? null,
+      supplied: parsed,
+    });
 
     const creditMemoId = randomUUID();
     const creditMemo = em.create(SalesCreditMemo, {
@@ -9809,6 +9898,7 @@ const createCreditMemoCommand: CommandHandler<
       taxTotalAmount: toNumericString(parsed.taxTotalAmount ?? 0),
       grandTotalNetAmount: toNumericString(parsed.grandTotalNetAmount ?? 0),
       grandTotalGrossAmount: toNumericString(parsed.grandTotalGrossAmount ?? 0),
+      ...inheritedTax,
       metadata: parsed.metadata ?? null,
       customFieldSetId: parsed.customFieldSetId ?? null,
       createdAt: new Date(),
