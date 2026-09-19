@@ -8,6 +8,7 @@ import { telemetryServerExternalPackages } from '@open-mercato/telemetry/nextjs-
 // Next reads allowedDevOrigins only in `next dev`, where the list is needed, and ignores it in
 // `next start`, so resolving it unconditionally is safe and keeps /_next/* reachable from a
 // non-localhost host (APP_URL, NEXT_PUBLIC_APP_URL, APP_ALLOWED_ORIGINS).
+const isDevelopment = process.env.NODE_ENV !== 'production'
 const allowedDevOrigins = resolveAllowedDevOrigins()
 
 const contentSecurityPolicy = [
