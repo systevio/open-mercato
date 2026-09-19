@@ -22,8 +22,8 @@
 | 2 | 2.7 | Public quote page and quote emails via a server-built preformatted view model | inline | done | 400928046 |
 | 2 | 2.8 | Catalog product forms: single price field, unit placeholders, `tax_code` and `is_taxable` | inline | done | b0c13d5d7 |
 | 2 | 2.9 | Tax rates wording: "Tax rates" in place of "VAT classes" | inline | done | 6e2362d5e |
-| 2 | 2.10 | Sales channel and WMS warehouse address forms pick up the shared layout | inline | done | — |
-| 2 | 2.11 | Shipment wizard: `AddressFields` and `PackageEditor` | inline | todo | — |
+| 2 | 2.10 | Sales channel and WMS warehouse address forms pick up the shared layout | inline | done | 11c4fba71 |
+| 2 | 2.11 | Shipment wizard: `AddressFields` and `PackageEditor` | inline | done | — |
 | 2 | 2.12 | Documents PDF reads `paperSize(profile)` | inline | todo | — |
 | 2 | 2.13 | CSV export takes the profile for dates, amounts and negative style | inline | todo | — |
 | 2 | 2.14 | Portal profile page dates | inline | todo | — |
