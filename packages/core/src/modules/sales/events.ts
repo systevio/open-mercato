@@ -20,6 +20,13 @@ const totalsCalculatedPayloadSchema: EventPayloadSchema = {
     { path: 'customerId', type: 'text', optional: true },
     { path: 'totals', type: 'object' },
     { path: 'lineCount', type: 'number' },
+    // Null when the calculation ran no tax stage, which is what a third party
+    // caller of calculateDocumentTotals produces.
+    { path: 'tax', type: 'object', optional: true },
+    { path: 'tax.providerKey', type: 'text', optional: true },
+    { path: 'tax.status', type: 'text', optional: true },
+    { path: 'tax.transactionRef', type: 'text', optional: true },
+    { path: 'tax.calculatedAt', type: 'text', optional: true },
   ],
 }
 

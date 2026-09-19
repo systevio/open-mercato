@@ -122,8 +122,10 @@ import type { TaxCalculationService } from "../services/taxCalculationService";
 import type {
   PaymentMethodContext,
   ShippingMethodContext,
+  TaxCalculationStatus,
   TaxDocumentContext,
 } from "../lib/providers";
+import type { TaxInfo } from "../lib/providers/taxInfo";
 import { resolveTaxDocumentContext } from "../lib/providers/taxContext";
 import {
   type SalesLineSnapshot,
@@ -3093,6 +3095,32 @@ function mapQuoteAdjustmentToDraft(
   };
 }
 
+/**
+ * The provenance summary a consumer of `sales.document.totals.calculated`
+ * needs without having to read the document back. It is `null` for a
+ * calculation that ran no tax stage, which is what a third party caller of
+ * `calculateDocumentTotals` produces.
+ */
+type TaxEventBlock = {
+  providerKey: string;
+  status: TaxCalculationStatus;
+  transactionRef: string | null;
+  calculatedAt: string;
+};
+
+function taxEventBlock(
+  calculation: SalesDocumentCalculationResult,
+): TaxEventBlock | null {
+  const info = (calculation.metadata ?? {}).tax as TaxInfo | undefined;
+  if (!info) return null;
+  return {
+    providerKey: info.providerKey,
+    status: info.status,
+    transactionRef: info.transaction.reference,
+    calculatedAt: info.calculatedAt,
+  };
+}
+
 async function emitTotalsCalculated(
   eventBus: EventBus | null | undefined,
   payload: {
@@ -3103,6 +3131,7 @@ async function emitTotalsCalculated(
     customerId?: string | null;
     totals: SalesDocumentCalculationResult["totals"];
     lineCount: number;
+    tax?: TaxEventBlock | null;
   },
 ): Promise<void> {
   if (!eventBus) return;
@@ -5038,6 +5067,7 @@ const createQuoteCommand: CommandHandler<
             customerId: quote.customerEntityId ?? null,
             totals: calculation.totals,
             lineCount: calculation.lines.length,
+            tax: taxEventBlock(calculation),
           });
           await syncSalesDocumentTags(em, {
             documentId: quote.id,
@@ -5459,6 +5489,7 @@ const updateQuoteCommand: CommandHandler<
               customerId: quote.customerEntityId ?? null,
               totals: calculation.totals,
               lineCount: calculation.lines.length,
+              tax: taxEventBlock(calculation),
             });
           }
           quote.updatedAt = new Date();
@@ -5721,6 +5752,7 @@ const updateOrderCommand: CommandHandler<
               customerId: order.customerEntityId ?? null,
               totals: calculation.totals,
               lineCount: calculation.lines.length,
+              tax: taxEventBlock(calculation),
             });
           }
           statusChangeNote = await appendOrderStatusChangeNote({
@@ -6098,6 +6130,7 @@ const createOrderCommand: CommandHandler<
             customerId: order.customerEntityId ?? null,
             totals: calculation.totals,
             lineCount: calculation.lines.length,
+            tax: taxEventBlock(calculation),
           });
           await syncSalesDocumentTags(em, {
             documentId: order.id,
@@ -7444,6 +7477,7 @@ const orderLineUpsertCommand: CommandHandler<
             customerId: order.customerEntityId ?? null,
             totals: calculation.totals,
             lineCount: calculation.lines.length,
+            tax: taxEventBlock(calculation),
           });
         },
       ],
@@ -7621,6 +7655,7 @@ const orderLineDeleteCommand: CommandHandler<
             customerId: order.customerEntityId ?? null,
             totals: calculation.totals,
             lineCount: calculation.lines.length,
+            tax: taxEventBlock(calculation),
           });
         },
       ],
@@ -7931,6 +7966,7 @@ const quoteLineUpsertCommand: CommandHandler<
             customerId: quote.customerEntityId ?? null,
             totals: calculation.totals,
             lineCount: calculation.lines.length,
+            tax: taxEventBlock(calculation),
           });
         },
       ],
@@ -8080,6 +8116,7 @@ const quoteLineDeleteCommand: CommandHandler<
             customerId: quote.customerEntityId ?? null,
             totals: calculation.totals,
             lineCount: calculation.lines.length,
+            tax: taxEventBlock(calculation),
           });
         },
       ],
@@ -8369,6 +8406,7 @@ const orderAdjustmentUpsertCommand: CommandHandler<
             customerId: order.customerEntityId ?? null,
             totals: calculation.totals,
             lineCount: calculation.lines.length,
+            tax: taxEventBlock(calculation),
           });
         },
       ],
@@ -8529,6 +8567,7 @@ const orderAdjustmentDeleteCommand: CommandHandler<
             customerId: order.customerEntityId ?? null,
             totals: calculation.totals,
             lineCount: calculation.lines.length,
+            tax: taxEventBlock(calculation),
           });
         },
       ],
@@ -8816,6 +8855,7 @@ const quoteAdjustmentUpsertCommand: CommandHandler<
             customerId: quote.customerEntityId ?? null,
             totals: calculation.totals,
             lineCount: calculation.lines.length,
+            tax: taxEventBlock(calculation),
           });
         },
       ],
@@ -8975,6 +9015,7 @@ const quoteAdjustmentDeleteCommand: CommandHandler<
             customerId: quote.customerEntityId ?? null,
             totals: calculation.totals,
             lineCount: calculation.lines.length,
+            tax: taxEventBlock(calculation),
           });
         },
       ],
