@@ -18,6 +18,8 @@ export type SalesLineRecord = {
   /** Percentage the discount was requested as, if it was requested that way. */
   discountPercent?: number
   taxRate: number
+  /** Tax booked against the whole line, as the document's last calculation stored it. */
+  taxAmount?: number
   totalNet: number
   totalGross: number
   priceMode: 'net' | 'gross'

@@ -17,6 +17,14 @@ The Sales workspace keeps orders and quotes together so operators can monitor ev
 
 ![Totals breakdown](/screenshots/open-mercato-orders-order-totals.png)
 
+### Totals in a single-price market
+
+Markets whose display profile sets **Price presentation** to *single price plus tax* (the US template) drop the net/gross pairs entirely. The block then reads **Subtotal** (the lines before tax), **Discount** (negative, only when there is one), **Shipping** (only when there is one), the market's tax line (for example **Sales tax**), and **Total** — the tax-inclusive amount. It is a column that adds up, and every row stays visible without expanding it. Per-jurisdiction tax detail stays under the tax row. Orders keep their Paid, Refunded and Outstanding rows.
+
+Line rows change the same way: **Price** (the unit amount), **Qty**, **Line total**, **Tax** and **Total including tax**. The per-line Tax comes from the document's stored tax calculation; a document with no per-line tax (a provider fallback, or a tax-exempt document) shows a dash per row and only the document-level tax total.
+
+Markets on *dual net/gross*, and organizations that never picked a market, see no change.
+
 ## Quote vs order
 
 - **Quotes** behave like pre-orders or negotiation drafts. They can later be converted into an order (with numbering following the configured sequence).

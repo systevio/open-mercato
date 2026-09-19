@@ -18,7 +18,12 @@ import {
 } from "@open-mercato/core/modules/dictionaries/components/dictionaryAppearance";
 import { useT, useLocale } from "@open-mercato/shared/lib/i18n/context";
 import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider';
-import { showsSinglePricePlusTax } from '@open-mercato/shared/lib/display/price';
+import { resolvePriceLabelKey, showsSinglePricePlusTax } from '@open-mercato/shared/lib/display/price';
+import {
+  extractTaxInfoLines,
+  resolveLineTaxAmount,
+  resolveLineTotalIncludingTax,
+} from "../../lib/lineTaxPresentation";
 import { useOrganizationScopeDetail } from "@open-mercato/shared/lib/frontend/useOrganizationScope";
 import { useConfirmDialog } from "@open-mercato/ui/backend/confirm-dialog";
 import { emitSalesDocumentTotalsRefresh } from "@open-mercato/core/modules/sales/lib/frontend/documentTotalsEvents";
@@ -133,6 +138,13 @@ function resolveInjectedColumnValue(
   return current;
 }
 
+/**
+ * A line the document's tax result says nothing about. It is a dash rather than a zero on purpose:
+ * a `fallback` or `exempt` document carries only a document level tax total, and a column of
+ * confident zeros would claim a per line figure nobody calculated.
+ */
+const NO_LINE_TAX = "—";
+
 const SHIPMENTS_PAGE_SIZE = 100;
 // A single order beyond this many shipment pages is pathological; stopping there
 // keeps the shipped state explicitly unresolved rather than silently partial.
@@ -145,6 +157,12 @@ type SalesDocumentItemsSectionProps = {
   documentUpdatedAt?: string | null;
   organizationId?: string | null;
   tenantId?: string | null;
+  /**
+   * The document's persisted tax result (`tax_info`). Under `single_price_plus_tax` its
+   * `lines[].taxAmount` fills the per line Tax and Total including tax cells; without it those
+   * cells fall back to each line's own stored tax amount.
+   */
+  taxInfo?: unknown;
   onActionChange?: (action: SectionAction | null) => void;
   onItemsChange?: (items: SalesLineRecord[]) => void;
 };
@@ -156,6 +174,7 @@ export function SalesDocumentItemsSection({
   documentUpdatedAt,
   organizationId: orgFromProps,
   tenantId: tenantFromProps,
+  taxInfo,
   onActionChange,
   onItemsChange,
 }: SalesDocumentItemsSectionProps) {
@@ -163,8 +182,10 @@ export function SalesDocumentItemsSection({
   const locale = useLocale();
   const displayProfile = useDisplayProfile();
   // A market that shows one price plus a separate tax line must not also print a gross amount on
-  // the same row: the two together double count the tax.
+  // the same row: the two together double count the tax. The row carries Price, Quantity, Line
+  // total, Tax and Total including tax instead - no net, no gross.
   const singlePricePresentation = showsSinglePricePlusTax(displayProfile);
+  const taxInfoLines = React.useMemo(() => extractTaxInfoLines(taxInfo), [taxInfo]);
   const { organizationId, tenantId } = useOrganizationScopeDetail();
   const { confirm, ConfirmDialogElement } = useConfirmDialog();
   const resolvedOrganizationId = orgFromProps ?? organizationId ?? null;
@@ -357,6 +378,7 @@ export function SalesDocumentItemsSection({
                 0,
               ),
               taxRate,
+              taxAmount: normalizeNumber(item.tax_amount ?? item.taxAmount, 0),
               totalNet,
               totalGross,
               priceMode,
@@ -703,7 +725,13 @@ export function SalesDocumentItemsSection({
                   {t("sales.documents.items.table.quantity", "Qty")}
                 </th>
                 <th className="px-3 py-2 font-medium">
-                  {t("sales.documents.items.table.unit", "Unit price")}
+                  {t(
+                    resolvePriceLabelKey(
+                      "sales.documents.items.table.unit",
+                      displayProfile,
+                    ),
+                    singlePricePresentation ? "Price" : "Unit price",
+                  )}
                 </th>
                 {showDiscountColumn ? (
                   <th className="px-3 py-2 font-medium whitespace-nowrap">
@@ -711,8 +739,27 @@ export function SalesDocumentItemsSection({
                   </th>
                 ) : null}
                 <th className="px-3 py-2 font-medium">
-                  {t("sales.documents.items.table.total", "Total")}
+                  {t(
+                    resolvePriceLabelKey(
+                      "sales.documents.items.table.total",
+                      displayProfile,
+                    ),
+                    singlePricePresentation ? "Line total" : "Total",
+                  )}
                 </th>
+                {singlePricePresentation ? (
+                  <>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">
+                      {t("sales.documents.usPresentation.items.tax", "Tax")}
+                    </th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">
+                      {t(
+                        "sales.documents.usPresentation.items.totalIncludingTax",
+                        "Total including tax",
+                      )}
+                    </th>
+                  </>
+                ) : null}
                 {injectedColumns.map((col) => (
                   <th
                     key={col.id}
@@ -764,6 +811,12 @@ export function SalesDocumentItemsSection({
                   item.uomSnapshot,
                 );
                 const discount = resolveLineDiscountDisplay(item);
+                const lineTax = singlePricePresentation
+                  ? resolveLineTaxAmount(item.id, item.taxAmount, taxInfoLines)
+                  : null;
+                const lineTotalIncludingTax = singlePricePresentation
+                  ? resolveLineTotalIncludingTax(item.totalNet, lineTax)
+                  : null;
 
                 return (
                   <tr
@@ -954,6 +1007,30 @@ export function SalesDocumentItemsSection({
                         )}
                       </div>
                     </td>
+                    {singlePricePresentation ? (
+                      <>
+                        <td className="px-3 py-3">
+                          <span className="font-mono text-sm">
+                            {lineTax === null
+                              ? NO_LINE_TAX
+                              : formatMoney(
+                                  lineTax,
+                                  item.currencyCode ?? currencyCode ?? undefined,
+                                  locale, displayProfile,
+                                )}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 font-semibold">
+                          {lineTotalIncludingTax === null
+                            ? NO_LINE_TAX
+                            : formatMoney(
+                                lineTotalIncludingTax,
+                                item.currencyCode ?? currencyCode ?? undefined,
+                                locale, displayProfile,
+                              )}
+                        </td>
+                      </>
+                    ) : null}
                     {injectedColumns.map((col) => {
                       const colValue = resolveInjectedColumnValue(
                         item as unknown as Record<string, unknown>,
