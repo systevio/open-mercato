@@ -13,8 +13,8 @@
 | Phase | Step | Title | Exec | Status | Commit |
 |-------|------|-------|------|--------|--------|
 | 1 | 1.1 | Add getSelectableSubdivisions and findSubdivision with unit tests | inline | done | 2bcf5cc8a |
-| 1 | 1.2 | Country-aware resolveAddressLayout and name-tolerant validateAddressForProfile | inline | done | PENDING |
-| 1 | 1.3 | Wire the packages/ui AddressEditor with RTL coverage | inline | todo | — |
+| 1 | 1.2 | Country-aware resolveAddressLayout and name-tolerant validateAddressForProfile | inline | done | 985bd94ef |
+| 1 | 1.3 | Wire the packages/ui AddressEditor with RTL coverage | inline | done | PENDING |
 | 1 | 1.4 | Wire the customers AddressEditor with RTL coverage | inline | todo | — |
 | 2 | 2.1 | Replace the channel region field with ChannelRegionField and RTL coverage | inline | todo | — |
 | 2 | 2.2 | Special-case the ship-from region in TaxProviderSettings with test coverage | inline | todo | — |
