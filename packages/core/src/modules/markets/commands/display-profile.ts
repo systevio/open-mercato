@@ -147,23 +147,36 @@ const createProfileCommand: CommandHandler<MarketDisplayProfileCreateInput, { pr
     if (!scope) throw notFound('Organization scope is required to pick a market.')
 
     const em = (ctx.container.resolve('em') as EntityManager).fork()
+    // Soft-deleted rows included on purpose. The unique constraint is on (organization_id,
+    // tenant_id) with no deleted_at predicate, so a cleared market still occupies the scope: an
+    // insert would violate it, and clearing a market then picking one again is the documented round
+    // trip. A cleared row is revived rather than replaced, which also keeps its id stable for the
+    // audit trail.
     const existing = await em.findOne(MarketDisplayProfile, {
       organizationId: scope.organizationId,
       tenantId: scope.tenantId,
-      deletedAt: null,
     })
-    if (existing) throw conflict('This organization already has a market display profile.')
+    if (existing && !existing.deletedAt) {
+      throw conflict('This organization already has a market display profile.')
+    }
 
-    const record = em.create(MarketDisplayProfile, {
+    const record = existing ?? em.create(MarketDisplayProfile, {
       organizationId: scope.organizationId,
       tenantId: scope.tenantId,
       ...parsed,
       isActive: parsed.isActive !== false,
     } as unknown as MarketDisplayProfile)
-    // The persist belongs INSIDE a phase: `withAtomicFlush` flushes after each phase, so an empty
+
+    // The mutation belongs INSIDE a phase: `withAtomicFlush` flushes after each phase, so an empty
     // phase list flushes nothing and the row never reaches the database.
     await withAtomicFlush(em, [
-      () => { em.persist(record) },
+      () => {
+        if (existing) {
+          Object.assign(record, parsed, { deletedAt: null, isActive: parsed.isActive !== false })
+        } else {
+          em.persist(record)
+        }
+      },
     ], { transaction: true, label: 'markets.market_display_profile.create' })
 
     await invalidateProfileCache(ctx, scope)
