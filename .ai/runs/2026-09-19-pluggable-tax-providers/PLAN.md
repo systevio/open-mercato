@@ -24,7 +24,7 @@
 | 1 | 1.8 | Tax events and totals payload | inline | done | — |
 | 2 | 2.1 | Tax columns on the four document tables | inline | done | — |
 | 2 | 2.2 | Persist the tax result on quotes and orders | inline | done | — |
-| 2 | 2.3 | Tax columns through command snapshots and undo | inline | todo | — |
+| 2 | 2.3 | Tax columns through command snapshots and undo | inline | done | — |
 | 2 | 2.4 | Invoice and credit memo inheritance | inline | todo | — |
 | 2 | 2.5 | Expose the tax fields on the document APIs | inline | todo | — |
 | 2 | 2.6 | Recalculate tax command and route | inline | todo | — |

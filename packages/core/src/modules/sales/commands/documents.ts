@@ -248,7 +248,11 @@ type QuoteGraphSnapshot = {
     validFrom: string | null;
     validUntil: string | null;
     comments: string | null;
+    taxStrategyKey: string | null;
     taxInfo: Record<string, unknown> | null;
+    taxStatus: string | null;
+    taxCalculatedAt: string | null;
+    taxTransactionRef: string | null;
     shippingMethodId: string | null;
     shippingMethodCode: string | null;
     deliveryWindowId: string | null;
@@ -354,6 +358,9 @@ type OrderGraphSnapshot = {
     taxStrategyKey: string | null;
     discountStrategyKey: string | null;
     taxInfo: Record<string, unknown> | null;
+    taxStatus: string | null;
+    taxCalculatedAt: string | null;
+    taxTransactionRef: string | null;
     shippingMethodId: string | null;
     shippingMethodCode: string | null;
     deliveryWindowId: string | null;
@@ -1702,7 +1709,11 @@ async function loadQuoteSnapshot(
       validFrom: quote.validFrom ? quote.validFrom.toISOString() : null,
       validUntil: quote.validUntil ? quote.validUntil.toISOString() : null,
       comments: quote.comments ?? null,
+      taxStrategyKey: quote.taxStrategyKey ?? null,
       taxInfo: quote.taxInfo ? cloneJson(quote.taxInfo) : null,
+      taxStatus: quote.taxStatus ?? null,
+      taxCalculatedAt: quote.taxCalculatedAt ? quote.taxCalculatedAt.toISOString() : null,
+      taxTransactionRef: quote.taxTransactionRef ?? null,
       shippingMethodId: quote.shippingMethodId ?? null,
       shippingMethodCode: quote.shippingMethodCode ?? null,
       deliveryWindowId: quote.deliveryWindowId ?? null,
@@ -1992,6 +2003,9 @@ async function loadOrderSnapshot(
       taxStrategyKey: order.taxStrategyKey ?? null,
       discountStrategyKey: order.discountStrategyKey ?? null,
       taxInfo: order.taxInfo ? cloneJson(order.taxInfo) : null,
+      taxStatus: order.taxStatus ?? null,
+      taxCalculatedAt: order.taxCalculatedAt ? order.taxCalculatedAt.toISOString() : null,
+      taxTransactionRef: order.taxTransactionRef ?? null,
       shippingMethodId: order.shippingMethodId ?? null,
       shippingMethodCode: order.shippingMethodCode ?? null,
       deliveryWindowId: order.deliveryWindowId ?? null,
@@ -4077,7 +4091,11 @@ function applyQuoteSnapshot(
   quote.validFrom = snapshot.validFrom ? new Date(snapshot.validFrom) : null;
   quote.validUntil = snapshot.validUntil ? new Date(snapshot.validUntil) : null;
   quote.comments = snapshot.comments ?? null;
+  quote.taxStrategyKey = snapshot.taxStrategyKey ?? null;
   quote.taxInfo = snapshot.taxInfo ? cloneJson(snapshot.taxInfo) : null;
+  quote.taxStatus = snapshot.taxStatus ?? null;
+  quote.taxCalculatedAt = snapshot.taxCalculatedAt ? new Date(snapshot.taxCalculatedAt) : null;
+  quote.taxTransactionRef = snapshot.taxTransactionRef ?? null;
   quote.shippingMethodId = snapshot.shippingMethodId ?? null;
   quote.shippingMethodCode = snapshot.shippingMethodCode ?? null;
   quote.deliveryWindowId = snapshot.deliveryWindowId ?? null;
@@ -4139,6 +4157,9 @@ function applyOrderSnapshot(
   order.taxStrategyKey = snapshot.taxStrategyKey ?? null;
   order.discountStrategyKey = snapshot.discountStrategyKey ?? null;
   order.taxInfo = snapshot.taxInfo ? cloneJson(snapshot.taxInfo) : null;
+  order.taxStatus = snapshot.taxStatus ?? null;
+  order.taxCalculatedAt = snapshot.taxCalculatedAt ? new Date(snapshot.taxCalculatedAt) : null;
+  order.taxTransactionRef = snapshot.taxTransactionRef ?? null;
   order.shippingMethodId = snapshot.shippingMethodId ?? null;
   order.shippingMethodCode = snapshot.shippingMethodCode ?? null;
   order.deliveryWindowId = snapshot.deliveryWindowId ?? null;
@@ -4225,9 +4246,15 @@ async function restoreQuoteGraph(
         ? new Date(snapshot.quote.validUntil)
         : null,
       comments: snapshot.quote.comments ?? null,
+      taxStrategyKey: snapshot.quote.taxStrategyKey ?? null,
       taxInfo: snapshot.quote.taxInfo
         ? cloneJson(snapshot.quote.taxInfo)
         : null,
+      taxStatus: snapshot.quote.taxStatus ?? null,
+      taxCalculatedAt: snapshot.quote.taxCalculatedAt
+        ? new Date(snapshot.quote.taxCalculatedAt)
+        : null,
+      taxTransactionRef: snapshot.quote.taxTransactionRef ?? null,
       shippingMethodId: snapshot.quote.shippingMethodId ?? null,
       shippingMethodCode: snapshot.quote.shippingMethodCode ?? null,
       deliveryWindowId: snapshot.quote.deliveryWindowId ?? null,
@@ -4543,6 +4570,11 @@ async function restoreOrderGraph(
       taxInfo: snapshot.order.taxInfo
         ? cloneJson(snapshot.order.taxInfo)
         : null,
+      taxStatus: snapshot.order.taxStatus ?? null,
+      taxCalculatedAt: snapshot.order.taxCalculatedAt
+        ? new Date(snapshot.order.taxCalculatedAt)
+        : null,
+      taxTransactionRef: snapshot.order.taxTransactionRef ?? null,
       shippingMethodId: snapshot.order.shippingMethodId ?? null,
       shippingMethodCode: snapshot.order.shippingMethodCode ?? null,
       deliveryWindowId: snapshot.order.deliveryWindowId ?? null,
@@ -6625,11 +6657,20 @@ const convertQuoteToOrderCommand: CommandHandler<
           : null,
         currencyCode: snapshot.quote.currencyCode,
         exchangeRate: null,
-        taxStrategyKey: null,
+        // The converted order inherits the quote's whole tax result, not just
+        // its document. Resetting the provider key here would leave an order
+        // holding a tax_info the key no longer names; the order recalculates on
+        // its next write anyway, which overwrites all five together.
+        taxStrategyKey: snapshot.quote.taxStrategyKey ?? null,
         discountStrategyKey: null,
         taxInfo: snapshot.quote.taxInfo
           ? cloneJson(snapshot.quote.taxInfo)
           : null,
+        taxStatus: snapshot.quote.taxStatus ?? null,
+        taxCalculatedAt: snapshot.quote.taxCalculatedAt
+          ? new Date(snapshot.quote.taxCalculatedAt)
+          : null,
+        taxTransactionRef: snapshot.quote.taxTransactionRef ?? null,
         shippingMethodId: snapshot.quote.shippingMethodId ?? null,
         shippingMethodCode: snapshot.quote.shippingMethodCode ?? null,
         deliveryWindowId: snapshot.quote.deliveryWindowId ?? null,
