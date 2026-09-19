@@ -178,7 +178,16 @@ export type TaxRequestLine = {
   quantity: number
   unitPriceNet: number
   amountNet: number
+  amountGross: number
   discountAmount: number
+  /**
+   * The tax the calculation engine already derived for this line from its own
+   * table rate. A provider that computes its own figures ignores it; the built
+   * in `table-rates` provider returns it verbatim, which is what makes it an
+   * exact identity over the engine (a rate alone cannot reproduce a line that
+   * carried an explicit tax amount or whose tax came from the gross delta).
+   */
+  taxAmount: number
   taxIncluded: boolean
   taxRateId: string | null
   taxRate: number | null
@@ -195,7 +204,10 @@ export type TaxRequestCharge = {
   code: string | null
   label: string | null
   amountNet: number
+  amountGross: number
   taxRate: number | null
+  /** The tax portion the engine already derived for this charge (`gross - net`). */
+  taxAmount: number
   calculatorKey: string | null
 }
 

@@ -16,3 +16,8 @@
 - Owner instruction: the implementation PR stays a **draft** against `develop`. No merge, no deploy, no package publish.
 - Corrected the Step 1.2 `Commit` cell from the placeholder `pending` to `ed37ac8a9`.
 - Resume point: Step 1.3 (TaxInfo and result schemas).
+
+## 2026-09-19T10:20:00Z — spec delta recorded (Step 1.5)
+- **Delta from the spec's `TaxRequestLine` / `TaxRequestCharge` tables:** two additive fields on each — `amountGross` and `taxAmount` (plus `amountGross` on the charge). The spec's own field list could not support its own central guarantee: `table-rates` is required to be "an identity over the engine's line math", but from `amountNet` and `taxRate` alone it cannot reproduce a line that carried an explicit `taxAmount` (`lib/calculations.ts:164-167`) or one whose tax came from the gross/net delta heuristic (`:177-180`). Passing the engine's own per line figure makes the identity exact instead of approximate, and it is information a real engine wants anyway (Saleor's `TaxableObject` and commercetools' external rates both carry the current tax).
+- Second, smaller delta: `table-rates` emits no jurisdiction detail row for a zero-tax line. A table rate carries no jurisdiction identity, so such a row would say nothing; the spec's TC-SALES-TAX-001 assertion (one breakdown entry per line) still holds for lines that actually carry a rate.
+- Both deltas are additive to types that have not shipped; nothing outside this branch depends on them. They are called out in the PR body.

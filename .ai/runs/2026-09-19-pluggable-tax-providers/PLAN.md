@@ -18,7 +18,7 @@
 | 1 | 1.2 | Tax provider registry | inline | done | ed37ac8a9 |
 | 1 | 1.3 | TaxInfo and result schemas | inline | done | d29e41f46 |
 | 1 | 1.4 | Tax document context assembly | inline | done | — |
-| 1 | 1.5 | Built in table-rates and fixed-rate providers | inline | todo | — |
+| 1 | 1.5 | Built in table-rates and fixed-rate providers | inline | done | — |
 | 1 | 1.6 | Tax stage in the provider totals calculator | inline | todo | — |
 | 1 | 1.7 | Wire the tax context into every recalculation site | inline | todo | — |
 | 1 | 1.8 | Tax events and totals payload | inline | todo | — |

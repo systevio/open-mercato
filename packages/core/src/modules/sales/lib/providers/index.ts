@@ -30,6 +30,15 @@ export {
   taxTransactionStateSchema,
 } from './taxInfo'
 export type { TaxInfo, TaxProviderResultParsed } from './taxInfo'
+export {
+  FIXED_RATE_PROVIDER_KEY,
+  TABLE_RATES_PROVIDER_KEY,
+  defaultTaxProviders,
+  fixedRateSettingsSchema,
+  fixedRateTaxProvider,
+  registerDefaultTaxProviders,
+  tableRatesTaxProvider,
+} from './taxProviders'
 
 export type {
   PaymentProvider,
