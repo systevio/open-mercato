@@ -3,7 +3,9 @@
 import * as React from 'react'
 import { EyeOff } from 'lucide-react'
 import { useT, useLocale } from '@open-mercato/shared/lib/i18n/context'
+import { formatNumber } from '@open-mercato/shared/lib/display/money'
 import { KpiCard, type KpiTrend } from '@open-mercato/ui/backend/charts/KpiCard'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { IconButton } from '@open-mercato/ui/primitives/icon-button'
 import {
@@ -12,20 +14,11 @@ import {
   clearVersionedPreference,
 } from '@open-mercato/shared/lib/browser/versionedPreference'
 import { isOpenDealStatus, isWonDealStatus } from '../../lib/dealStatus'
-import type { CompanyOverview, DealSummary, InteractionSummary } from '../formConfig'
+import type { CompanyCurrencySubtotal, CompanyOverview, DealSummary, InteractionSummary } from '../formConfig'
 import { formatCurrency } from './utils'
 
 const STORAGE_KEY = 'om:company-detail-kpi-hidden'
 const STORAGE_VERSION = 1
-
-function sumActiveDeals(deals: DealSummary[]): number {
-  return deals
-    .filter((d) => isOpenDealStatus(d.status))
-    .reduce((sum, d) => {
-      const amount = typeof d.valueAmount === 'number' ? d.valueAmount : parseFloat(String(d.valueAmount ?? '0'))
-      return sum + (Number.isFinite(amount) ? amount : 0)
-    }, 0)
-}
 
 function getActiveDeals(deals: DealSummary[]): DealSummary[] {
   return deals.filter((d) => isOpenDealStatus(d.status))
@@ -65,31 +58,24 @@ type CompanyKpiBarProps = {
   data: CompanyOverview
 }
 
+type MoneyTilePresentation = {
+  value: number | null
+  formatValue?: (value: number) => string
+  comparisonLabel?: string
+  footer?: React.ReactNode
+}
+
 export function CompanyKpiBar({ data }: CompanyKpiBarProps) {
   const t = useT()
   const locale = useLocale()
+  const displayProfile = useDisplayProfile()
 
   const activeDeals = React.useMemo(() => getActiveDeals(data.deals), [data.deals])
-  const activeDealsValue = React.useMemo(
-    () => data.kpis?.activeDealsValue ?? sumActiveDeals(data.deals),
-    [data.deals, data.kpis?.activeDealsValue],
-  )
-  const dealCurrency = data.kpis?.dealCurrency ?? activeDeals[0]?.valueCurrency ?? data.deals[0]?.valueCurrency ?? 'PLN'
   const activityTrend = React.useMemo(
     () => data.kpis?.activityTrend ?? computeActivityTrend(data.interactions),
     [data.interactions, data.kpis?.activityTrend],
   )
   const dealTrend = React.useMemo(() => computeDealTrend(data.deals), [data.deals])
-
-  const ltvValue = React.useMemo(() => {
-    if (data.kpis?.ltvValue !== undefined) return data.kpis.ltvValue
-    const wonDeals = data.deals.filter((d) => isWonDealStatus(d.status))
-    if (wonDeals.length === 0) return null
-    return wonDeals.reduce((sum, d) => {
-      const amt = typeof d.valueAmount === 'number' ? d.valueAmount : parseFloat(String(d.valueAmount ?? '0'))
-      return sum + (Number.isFinite(amt) ? amt : 0)
-    }, 0)
-  }, [data.deals, data.kpis?.ltvValue])
 
   const clientTenureYears = React.useMemo(() => {
     if (data.kpis?.clientTenureYears !== undefined) return data.kpis.clientTenureYears
@@ -121,14 +107,91 @@ export function CompanyKpiBar({ data }: CompanyKpiBarProps) {
     clearVersionedPreference(STORAGE_KEY)
   }, [])
 
+  const renderCurrencySubtotal = React.useCallback((subtotal: CompanyCurrencySubtotal): string => {
+    if (subtotal.invalidAmountCount === subtotal.count) {
+      return t('customers.companies.dashboard.kpi.amountUnavailable', 'Amount unavailable')
+    }
+    const formatted = subtotal.currencyCode
+      ? formatCurrency(subtotal.amount, subtotal.currencyCode, locale, displayProfile)
+      : formatNumber(subtotal.amount, displayProfile, { locale }) ?? String(subtotal.amount)
+    const denomination = subtotal.currencyCode
+      ? formatted
+      : `${t('customers.companies.dashboard.kpi.currencyUnavailable', 'Currency unavailable')}: ${formatted}`
+    if (subtotal.invalidAmountCount === 0) return denomination
+    return `${denomination} · ${t('customers.companies.dashboard.kpi.incompleteTotal', 'Incomplete total')}`
+  }, [displayProfile, locale, t])
+
+  const buildMoneyTile = React.useCallback((
+    groups: CompanyCurrencySubtotal[] | undefined,
+    emptyValue: number | null,
+  ): MoneyTilePresentation => {
+    if (groups === undefined) {
+      return {
+        value: null,
+        comparisonLabel: t('customers.companies.dashboard.kpi.totalUnavailable', 'Total unavailable'),
+      }
+    }
+    if (groups.length === 0) {
+      return {
+        value: emptyValue,
+        formatValue: emptyValue === null
+          ? undefined
+          : (value: number) => formatCurrency(value, null, locale, displayProfile),
+      }
+    }
+    if (groups.length === 1) {
+      const [group] = groups
+      const hasValidAmount = group.invalidAmountCount < group.count
+      return {
+        value: hasValidAmount ? group.amount : null,
+        formatValue: hasValidAmount ? () => renderCurrencySubtotal(group) : undefined,
+        comparisonLabel: !hasValidAmount
+          ? t('customers.companies.dashboard.kpi.amountUnavailable', 'Amount unavailable')
+          : group.invalidAmountCount > 0
+            ? t('customers.companies.dashboard.kpi.incompleteTotal', 'Incomplete total')
+            : undefined,
+      }
+    }
+    return {
+      value: 0,
+      formatValue: () => t('customers.companies.dashboard.kpi.multipleCurrencies', 'Multiple currencies'),
+      footer: (
+        <ul className="space-y-1" aria-label={t('customers.companies.dashboard.kpi.currencyBreakdown', 'Currency breakdown')}>
+          {groups.map((group) => (
+            <li key={group.currencyCode ?? 'unknown'} className="text-xs text-muted-foreground">
+              {renderCurrencySubtotal(group)}
+            </li>
+          ))}
+        </ul>
+      ),
+    }
+  }, [displayProfile, locale, renderCurrencySubtotal, t])
+
+  const activeMoney = React.useMemo(
+    () => buildMoneyTile(data.kpis?.activeDealsByCurrency, 0),
+    [buildMoneyTile, data.kpis?.activeDealsByCurrency],
+  )
+  const wonMoney = React.useMemo(
+    () => buildMoneyTile(data.kpis?.wonDealsByCurrency, null),
+    [buildMoneyTile, data.kpis?.wonDealsByCurrency],
+  )
+  const activeDealsCount = data.kpis?.activeDealsCount ?? activeDeals.length
+
   const kpiTiles = React.useMemo(() => [
     {
       id: 'activeDeals',
       title: t('customers.companies.dashboard.kpi.activeDeals', 'ACTIVE DEALS'),
-      value: activeDealsValue,
+      value: activeMoney.value,
       trend: dealTrend,
-      formatValue: (v: number) => formatCurrency(v, dealCurrency, locale),
-      comparisonLabel: `${data.kpis?.activeDealsCount ?? activeDeals.length} ${(data.kpis?.activeDealsCount ?? activeDeals.length) === 1 ? 'pipeline' : 'pipelines'}`,
+      formatValue: activeMoney.formatValue,
+      comparisonLabel: activeMoney.comparisonLabel ?? t(
+        activeDealsCount === 1
+          ? 'customers.companies.dashboard.kpi.dealCount.one'
+          : 'customers.companies.dashboard.kpi.dealCount.other',
+        activeDealsCount === 1 ? '{{count}} deal' : '{{count}} deals',
+        { count: activeDealsCount },
+      ),
+      footer: activeMoney.footer,
     },
     {
       id: 'activities',
@@ -140,11 +203,12 @@ export function CompanyKpiBar({ data }: CompanyKpiBarProps) {
     {
       id: 'ltv',
       title: t('customers.companies.dashboard.kpi.ltv', 'CUSTOMER VALUE (LTV)'),
-      value: ltvValue,
-      formatValue: ltvValue !== null ? (v: number) => formatCurrency(v, dealCurrency, locale) : undefined,
-      comparisonLabel: ltvValue !== null
+      value: wonMoney.value,
+      formatValue: wonMoney.formatValue,
+      comparisonLabel: wonMoney.comparisonLabel ?? (wonMoney.value !== null
         ? t('customers.companies.dashboard.kpi.wonDeals', 'won deals total')
-        : t('customers.companies.dashboard.kpi.noWonDeals', 'No won deals'),
+        : t('customers.companies.dashboard.kpi.noWonDeals', 'No won deals')),
+      footer: wonMoney.footer,
     },
     {
       id: 'clientSince',
@@ -159,7 +223,7 @@ export function CompanyKpiBar({ data }: CompanyKpiBarProps) {
         ? `${data.kpis?.completedDealsCount ?? data.deals.filter((d) => isWonDealStatus(d.status)).length} ${t('customers.companies.dashboard.kpi.completedDeals', 'completed deals')}`
         : t('customers.companies.dashboard.kpi.noInteractions', 'No interactions yet'),
     },
-  ], [t, locale, activeDealsValue, dealTrend, dealCurrency, activeDeals.length, activityTrend, ltvValue, clientTenureYears, data.deals, data.interactions.length, data.kpis])
+  ], [t, activeMoney, dealTrend, activeDealsCount, activityTrend, wonMoney, clientTenureYears, data.deals, data.interactions.length, data.kpis])
 
   const visibleTiles = kpiTiles.filter((tile) => !hiddenTiles.has(tile.id))
 
@@ -174,6 +238,7 @@ export function CompanyKpiBar({ data }: CompanyKpiBarProps) {
               trend={tile.trend}
               formatValue={tile.formatValue}
               comparisonLabel={tile.comparisonLabel}
+              footer={tile.footer}
             />
             <IconButton
               type="button"

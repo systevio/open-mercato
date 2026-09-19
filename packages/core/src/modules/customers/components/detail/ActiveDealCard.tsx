@@ -3,7 +3,8 @@
 import * as React from 'react'
 import { ArrowUpRight, EyeOff, Handshake } from 'lucide-react'
 import { cn } from '@open-mercato/shared/lib/utils'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { Badge } from '@open-mercato/ui/primitives/badge'
 import { IconButton } from '@open-mercato/ui/primitives/icon-button'
 import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
@@ -23,6 +24,8 @@ type PipelineStageOption = {
 
 export function ActiveDealCard({ deals, onHide }: ActiveDealCardProps) {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const [pipelineStages, setPipelineStages] = React.useState<PipelineStageOption[]>([])
 
   const activeDeals = React.useMemo(
@@ -164,7 +167,7 @@ export function ActiveDealCard({ deals, onHide }: ActiveDealCardProps) {
 
         {Number.isFinite(amount) && amount > 0 && (
           <p className="mt-2 text-lg font-bold text-foreground">
-            {formatCurrency(amount, topDeal.valueCurrency)}
+            {formatCurrency(amount, topDeal.valueCurrency, locale, displayProfile)}
             <span className="ml-1.5 text-xs font-normal text-muted-foreground">
               {t('customers.companies.dashboard.potentialValue', 'potential value')}
             </span>

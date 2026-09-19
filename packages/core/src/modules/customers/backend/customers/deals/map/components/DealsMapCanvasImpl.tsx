@@ -10,7 +10,8 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import { X } from 'lucide-react'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { IconButton } from '@open-mercato/ui/primitives/icon-button'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { translateWithFallback } from '@open-mercato/shared/lib/i18n/translate'
 import type { FilterOptionTone } from '@open-mercato/shared/lib/query/advanced-filter'
 import { formatCurrency } from '../../../../../components/detail/utils'
@@ -139,10 +140,12 @@ type PreviewCardProps = {
 
 function DealMapPreviewCard({ preview, onClose }: PreviewCardProps): React.ReactElement {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const closeDate = formatShortDate(preview.expectedCloseAt)
   const metaParts: string[] = []
   if (typeof preview.valueAmount === 'number') {
-    metaParts.push(formatCurrency(preview.valueAmount, preview.valueCurrency))
+    metaParts.push(formatCurrency(preview.valueAmount, preview.valueCurrency, locale, displayProfile))
   }
   if (typeof preview.probability === 'number') {
     metaParts.push(
