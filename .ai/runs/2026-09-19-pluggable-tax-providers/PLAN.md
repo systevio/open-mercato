@@ -16,7 +16,7 @@
 |-------|------|-------|------|--------|--------|
 | 1 | 1.1 | Tax provider contract types | inline | done | 39c60ccc2 |
 | 1 | 1.2 | Tax provider registry | inline | done | ed37ac8a9 |
-| 1 | 1.3 | TaxInfo and result schemas | inline | todo | — |
+| 1 | 1.3 | TaxInfo and result schemas | inline | done | 95e5528d0 |
 | 1 | 1.4 | Tax document context assembly | inline | todo | — |
 | 1 | 1.5 | Built in table-rates and fixed-rate providers | inline | todo | — |
 | 1 | 1.6 | Tax stage in the provider totals calculator | inline | todo | — |

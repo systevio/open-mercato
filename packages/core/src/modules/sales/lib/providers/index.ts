@@ -17,6 +17,19 @@ export {
   registerTaxProvider,
 } from './registry'
 export { registerStripeProvider } from './defaultProviders'
+export {
+  buildTaxInfo,
+  isTaxProviderCalculateResult,
+  normalizeTaxProviderResult,
+  parseTaxInfo,
+  roundTaxAmount,
+  taxInfoSchema,
+  taxJurisdictionAmountSchema,
+  taxProviderMessageSchema,
+  taxProviderResultSchema,
+  taxTransactionStateSchema,
+} from './taxInfo'
+export type { TaxInfo, TaxProviderResultParsed } from './taxInfo'
 
 export type {
   PaymentProvider,
