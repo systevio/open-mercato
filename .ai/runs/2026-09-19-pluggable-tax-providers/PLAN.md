@@ -46,7 +46,7 @@
 | 5 | 5.3 | Lifecycle subscriber and record command | inline | deferred | deferred by the owner |
 | 5 | 5.4 | Transaction state on the document detail page | inline | deferred | deferred by the owner |
 | 5 | 5.5 | Lifecycle tests | inline | deferred | deferred by the owner |
-| 6 | 6.1 | User guide and pricing override docs | inline | todo | — |
+| 6 | 6.1 | User guide and pricing override docs | inline | done | — |
 | 6 | 6.2 | Provider docs and the package building guide | inline | todo | — |
 | 6 | 6.3 | Sales module framework docs | inline | todo | — |
 | 6 | 6.4 | Backward compatibility and upgrade notes | inline | todo | — |
