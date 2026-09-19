@@ -12,7 +12,7 @@
 
 | Phase | Step | Title | Exec | Status | Commit |
 |-------|------|-------|------|--------|--------|
-| 1 | 1.1 | Add getSelectableSubdivisions and findSubdivision with unit tests | inline | todo | — |
+| 1 | 1.1 | Add getSelectableSubdivisions and findSubdivision with unit tests | inline | done | 48834365d |
 | 1 | 1.2 | Country-aware resolveAddressLayout and name-tolerant validateAddressForProfile | inline | todo | — |
 | 1 | 1.3 | Wire the packages/ui AddressEditor with RTL coverage | inline | todo | — |
 | 1 | 1.4 | Wire the customers AddressEditor with RTL coverage | inline | todo | — |
