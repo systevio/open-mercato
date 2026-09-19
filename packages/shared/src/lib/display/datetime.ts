@@ -176,3 +176,16 @@ export function hourCycle(profile: DisplayProfile | null | undefined, fallback: 
 export function isHour12(profile: DisplayProfile | null | undefined, fallback: DisplayHourCycle): boolean {
   return hourCycle(profile, fallback) === 'h12'
 }
+
+/**
+ * The `hour12` option to hand `Intl`, or `undefined` to leave the decision to the locale.
+ *
+ * For the surfaces that pass no `hour12` today and let the runtime locale decide. Returning
+ * `undefined` without a profile keeps that exactly, which a required fallback could not express:
+ * hardcoding either `true` or `false` would visibly change one of them for every tenant that never
+ * picked a market.
+ */
+export function optionalHour12(profile?: DisplayProfile | null): boolean | undefined {
+  const cycle = withProfile(profile).hourCycle
+  return cycle === null ? undefined : cycle === 'h12'
+}

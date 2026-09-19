@@ -6,6 +6,28 @@ import type { DisplayProfileResolver } from './resolve-display-profile'
 
 const logger = createLogger('markets').child({ component: 'request-profile' })
 
+type ResolverContainer = { resolve<T>(name: string): T }
+
+/**
+ * The market display profile for a scope, from a container a server route already holds.
+ *
+ * Soft-optional by design (the pattern from `packages/core/AGENTS.md`): without the `markets`
+ * module there is no resolver, and `null` means the caller renders the legacy defaults. Never
+ * throws - a display setting must not be able to fail a data request.
+ */
+export async function resolveDisplayProfileForScope(
+  container: ResolverContainer,
+  scope: { tenantId?: string | null; organizationId?: string | null },
+): Promise<DisplayProfile | null> {
+  if (!scope.tenantId || !scope.organizationId) return null
+  try {
+    const resolver = container.resolve<DisplayProfileResolver>('displayProfileResolver')
+    return await resolver.resolve({ tenantId: scope.tenantId, organizationId: scope.organizationId })
+  } catch {
+    return null
+  }
+}
+
 /**
  * The signed-in caller's market display profile, for a server component.
  *

@@ -7,6 +7,7 @@ import { resolveTranslations } from '@open-mercato/shared/lib/i18n/server'
 import { resolveActiveOrganizationId, organizationScopeRequiredResponse } from '@open-mercato/shared/lib/auth/organizationScope'
 import { z } from 'zod'
 import { CrudHttpError } from '@open-mercato/shared/lib/crud/errors'
+import { getCommandInterceptorHttpRejection } from '@open-mercato/shared/lib/commands/errors'
 import {
   bridgeLegacyGuard,
   runMutationGuards,
@@ -175,6 +176,12 @@ export async function PUT(req: Request) {
     if (error instanceof CrudHttpError) {
       return Response.json(error.body as Record<string, unknown>, { status: error.status })
     }
+    // A command interceptor may reject with an explicit status; without this a deliberate 422
+    // business block would degrade to the generic 500 below.
+    const interceptorRejection = getCommandInterceptorHttpRejection(error)
+    if (interceptorRejection) {
+      return Response.json(interceptorRejection.body, { status: interceptorRejection.status })
+    }
     const validation = validationErrorResponse(error)
     if (validation) return validation
     logger.error('Failed to save market display profile', {
@@ -265,6 +272,12 @@ export async function DELETE(req: Request) {
   } catch (error) {
     if (error instanceof CrudHttpError) {
       return Response.json(error.body as Record<string, unknown>, { status: error.status })
+    }
+    // A command interceptor may reject with an explicit status; without this a deliberate 422
+    // business block would degrade to the generic 500 below.
+    const interceptorRejection = getCommandInterceptorHttpRejection(error)
+    if (interceptorRejection) {
+      return Response.json(interceptorRejection.body, { status: interceptorRejection.status })
     }
     const validation = validationErrorResponse(error)
     if (validation) return validation
