@@ -25,3 +25,14 @@
   `useDisplayProfile()` from inside a `useMemo`) rather than routing around it.
 - Decision: one no-profile rendering change was accepted and documented in Step 2.3 - the company card's
   "today, HH:MM" stamp moved to the short time style (`3:45 PM` in place of `03:45 PM` under an English UI).
+
+## 2026-09-19T15:25:06Z — checkpoint 2
+- Steps covered: 2.6b, 2.7, 2.8, 2.9, 2.10, 2.11 (commits 9fd947875..c80d7ad7d).
+- Repo-wide typecheck (38 packages) and the full core, shared and ui suites are green; `yarn generate` shows no
+  drift and all five locales are in sync.
+- Problem found and fixed: `salesComponentsRender > renders tax rates settings rows` asserted `/VAT/`, which was
+  matching the section description rather than any table row (the suite's DataTable stub never renders this
+  component's row shape). Step 2.9's rewording exposed it. The assertion now counts the row, like its siblings.
+- Decision: Steps 2.8 and 2.10 shipped smaller than the spec implies, for reasons recorded in their commits - the
+  catalog tax fields already existed from PR #5, and the WMS warehouse dialog has no address layout to apply.
+- UI verification still deferred to the final gate on `omw up --fresh`, for the reason recorded at checkpoint 1.
