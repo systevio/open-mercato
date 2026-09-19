@@ -948,6 +948,21 @@ function isCancelledOrderStatus(status: string | null): boolean {
   return status === "canceled" || status === "cancelled";
 }
 
+/**
+ * The same provenance summary `taxEventBlock` derives from a fresh calculation,
+ * read back from the stored columns for an event that fires on a status
+ * transition rather than on a recalculation.
+ */
+function storedTaxEventBlock(order: SalesOrder): TaxEventBlock | null {
+  if (!order.taxStrategyKey && !order.taxStatus) return null;
+  return {
+    providerKey: order.taxStrategyKey ?? "",
+    status: (order.taxStatus ?? "fallback") as TaxCalculationStatus,
+    transactionRef: order.taxTransactionRef ?? null,
+    calculatedAt: order.taxCalculatedAt ? order.taxCalculatedAt.toISOString() : "",
+  };
+}
+
 async function emitOrderLifecycleEvent(input: {
   eventId: "sales.order.confirmed" | "sales.order.cancelled";
   order: SalesOrder;
@@ -961,6 +976,10 @@ async function emitOrderLifecycleEvent(input: {
     status: normalizeStatusValue(input.order.status),
     tenantId: input.order.tenantId,
     organizationId: input.order.organizationId,
+    // Lets a package that prefers its own subscriber decide whether to commit
+    // or void a provider transaction without reading the order back. Null on an
+    // order written before this spec, or one whose writes never recalculated.
+    tax: storedTaxEventBlock(input.order),
   });
 }
 
