@@ -3,8 +3,12 @@ import path from "node:path";
 import { resolveAllowedDevOrigins } from './src/lib/dev-origins'
 import { telemetryServerExternalPackages } from '@open-mercato/telemetry/nextjs-config'
 
-const isDevelopment = process.env.NODE_ENV !== 'production'
-const allowedDevOrigins = isDevelopment ? resolveAllowedDevOrigins() : []
+// `mercato server dev` spawns Next with NODE_ENV=production (buildServerProcessEnvironment in
+// @open-mercato/cli), so NODE_ENV cannot tell the dev server from a production build here.
+// Next reads allowedDevOrigins only in `next dev`, where the list is needed, and ignores it in
+// `next start`, so resolving it unconditionally is safe and keeps /_next/* reachable from a
+// non-localhost host (APP_URL, NEXT_PUBLIC_APP_URL, APP_ALLOWED_ORIGINS).
+const allowedDevOrigins = resolveAllowedDevOrigins()
 
 const contentSecurityPolicy = [
   "default-src 'self'",
