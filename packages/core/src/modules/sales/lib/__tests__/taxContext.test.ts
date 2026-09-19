@@ -11,10 +11,16 @@ import {
 
 type FindCall = { entity: unknown; where: Record<string, unknown> }
 
-function makeEm(rows: { products?: unknown[]; variants?: unknown[] } = {}) {
+function makeEm(rows: { products?: unknown[]; variants?: unknown[]; settings?: unknown } = {}) {
   const calls: FindCall[] = []
   const em = {
     calls,
+    // The tax provider selection is read from sales_settings on the same
+    // EntityManager. It is deliberately NOT recorded in `calls`, which counts
+    // only the catalog reads these cases are about.
+    async findOne() {
+      return rows.settings ?? null
+    },
     async find(entity: unknown, where: Record<string, unknown>) {
       calls.push({ entity, where })
       if (entity === CatalogProduct) return rows.products ?? []
@@ -256,7 +262,7 @@ describe('resolveTaxDocumentContext', () => {
     expect(context.productFacts).toEqual({})
   })
 
-  it('defaults to the built in provider with no credentials in this phase', async () => {
+  it('defaults to the built in provider with no credentials', async () => {
     const em = makeEm()
     const context = await resolveTaxDocumentContext({ em, ...baseParams })
     expect(context.selection).toEqual({

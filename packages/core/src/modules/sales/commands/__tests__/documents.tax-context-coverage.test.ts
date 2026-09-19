@@ -35,7 +35,13 @@ describe('tax context coverage across recalculation sites', () => {
     const totalsCalls = returns.match(/calculateDocumentTotals\(\{/g) ?? []
     expect(totalsCalls.length).toBe(4)
 
-    const contexts = returns.match(/context:\s*await buildCalculationContext\(em, order, lineSnapshots\)/g) ?? []
+    // The container is threaded from whatever binding is in scope: `container`
+    // in the two helpers and in the display-only recalculation, `ctx.container`
+    // inside the command handler.
+    const contexts =
+      returns.match(
+        /context:\s*await buildCalculationContext\(em, order, lineSnapshots, (?:ctx\.)?container\)/g
+      ) ?? []
     expect(contexts.length).toBe(4)
   })
 

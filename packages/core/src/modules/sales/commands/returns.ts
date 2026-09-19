@@ -179,9 +179,11 @@ async function buildCalculationContext(
   em: EntityManager,
   order: SalesOrder,
   lines: SalesLineSnapshot[],
+  container?: { resolve: (key: string) => unknown } | null,
 ) {
   const tax = await resolveTaxDocumentContext({
     em,
+    container: container ?? null,
     organizationId: order.organizationId,
     tenantId: order.tenantId,
     documentKind: 'order',
@@ -248,7 +250,7 @@ export async function recalculateOrderTotalsForDisplay(
     documentKind: 'order',
     lines: lineSnapshots,
     adjustments: adjustmentDrafts,
-    context: await buildCalculationContext(em, order, lineSnapshots),
+    context: await buildCalculationContext(em, order, lineSnapshots, container),
     existingTotals: resolveExistingPaymentTotals(order),
   })
   return calculation.totals
@@ -359,6 +361,7 @@ async function reverseReturnEffects(
   em: EntityManager,
   salesCalculationService: SalesCalculationService,
   snapshot: ReturnSnapshot,
+  container?: { resolve: (key: string) => unknown } | null,
 ): Promise<void> {
   const order = await findOneWithDecryption(
     em,
@@ -433,7 +436,7 @@ async function reverseReturnEffects(
           documentKind: 'order',
           lines: lineSnapshots,
           adjustments: adjustmentDrafts,
-          context: await buildCalculationContext(em, order, lineSnapshots),
+          context: await buildCalculationContext(em, order, lineSnapshots, container),
           existingTotals: resolveExistingPaymentTotals(order),
         })
         applyOrderTotals(order, calculation.totals, calculation.lines.length)
@@ -457,6 +460,7 @@ async function restoreReturnEffects(
   em: EntityManager,
   salesCalculationService: SalesCalculationService,
   snapshot: ReturnSnapshot,
+  container?: { resolve: (key: string) => unknown } | null,
 ): Promise<SalesReturnLine[]> {
   const returnId = snapshot.id
   const createdLines: SalesReturnLine[] = []
@@ -584,7 +588,7 @@ async function restoreReturnEffects(
           documentKind: 'order',
           lines: lineSnapshots,
           adjustments: adjustmentDrafts,
-          context: await buildCalculationContext(em, order, lineSnapshots),
+          context: await buildCalculationContext(em, order, lineSnapshots, container),
           existingTotals: resolveExistingPaymentTotals(order),
         })
         applyOrderTotals(order, calculation.totals, calculation.lines.length)
@@ -771,7 +775,7 @@ const createReturnCommand: CommandHandler<ReturnCreateInput, { returnId: string 
         documentKind: 'order',
         lines: lineSnapshots,
         adjustments: adjustmentDrafts,
-        context: await buildCalculationContext(em, order, lineSnapshots),
+        context: await buildCalculationContext(em, order, lineSnapshots, ctx.container),
         existingTotals: resolveExistingPaymentTotals(order),
       })
       applyOrderTotals(order, calculation.totals, calculation.lines.length)
@@ -840,7 +844,7 @@ const createReturnCommand: CommandHandler<ReturnCreateInput, { returnId: string 
     if (!after) return
     const em = (ctx.container.resolve('em') as EntityManager).fork()
     const salesCalculationService = ctx.container.resolve<SalesCalculationService>('salesCalculationService')
-    await reverseReturnEffects(em, salesCalculationService, after)
+    await reverseReturnEffects(em, salesCalculationService, after, ctx.container)
     await invalidateOrderCache(ctx.container, {
       id: after.orderId,
       organizationId: after.organizationId,
@@ -855,7 +859,7 @@ const createReturnCommand: CommandHandler<ReturnCreateInput, { returnId: string 
     const em = (ctx.container.resolve('em') as EntityManager).fork()
     const salesCalculationService = ctx.container.resolve<SalesCalculationService>('salesCalculationService')
 
-    const createdLines = await restoreReturnEffects(em, salesCalculationService, after)
+    const createdLines = await restoreReturnEffects(em, salesCalculationService, after, ctx.container)
 
     const header = await findOneWithDecryption(
       em,
@@ -1071,7 +1075,7 @@ const deleteReturnCommand: CommandHandler<ReturnDeleteInput, { returnId: string 
     // Lock on the return's own version, captured before any mutation.
     await enforceSalesDocumentOptimisticLock(ctx, header, SALES_RESOURCE_KIND_RETURN)
 
-    await reverseReturnEffects(em, salesCalculationService, snapshot)
+    await reverseReturnEffects(em, salesCalculationService, snapshot, ctx.container)
     await invalidateOrderCache(ctx.container, {
       id: snapshot.orderId,
       organizationId: snapshot.organizationId,
@@ -1129,7 +1133,7 @@ const deleteReturnCommand: CommandHandler<ReturnDeleteInput, { returnId: string 
     const em = (ctx.container.resolve('em') as EntityManager).fork()
     const salesCalculationService = ctx.container.resolve<SalesCalculationService>('salesCalculationService')
 
-    const createdLines = await restoreReturnEffects(em, salesCalculationService, before)
+    const createdLines = await restoreReturnEffects(em, salesCalculationService, before, ctx.container)
 
     const header = await findOneWithDecryption(
       em,

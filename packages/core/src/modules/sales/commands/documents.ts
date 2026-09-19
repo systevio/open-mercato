@@ -3057,10 +3057,12 @@ async function resolveDocumentCalculationContext(params: {
   documentKind: SalesDocumentKind;
   document: TaxDocumentSource;
   lines: SalesLineSnapshot[];
+  container?: { resolve: (key: string) => unknown } | null;
 }) {
   const { document } = params;
   const tax = await resolveTaxDocumentContext({
     em: params.em,
+    container: params.container ?? null,
     organizationId: document.organizationId,
     tenantId: document.tenantId,
     documentKind: params.documentKind,
@@ -5173,6 +5175,7 @@ const createQuoteCommand: CommandHandler<
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
     const calculationContext = await resolveDocumentCalculationContext({
       em,
+      container: ctx.container,
       documentKind: "quote",
       document: quote,
       lines: lineSnapshots,
@@ -5588,6 +5591,7 @@ const updateQuoteCommand: CommandHandler<
               );
             const calculationContext = await resolveDocumentCalculationContext({
               em,
+      container: ctx.container,
               documentKind: "quote",
               document: quote,
               lines: calcLines,
@@ -5851,6 +5855,7 @@ const updateOrderCommand: CommandHandler<
               );
             const calculationContext = await resolveDocumentCalculationContext({
               em,
+      container: ctx.container,
               documentKind: "order",
               document: order,
               lines: calcLines,
@@ -6238,6 +6243,7 @@ const createOrderCommand: CommandHandler<
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
     const calculationContext = await resolveDocumentCalculationContext({
       em,
+      container: ctx.container,
       documentKind: "order",
       document: order,
       lines: lineSnapshots,
@@ -7598,6 +7604,7 @@ const orderLineUpsertCommand: CommandHandler<
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
     const calculationContext = await resolveDocumentCalculationContext({
       em,
+      container: ctx.container,
       documentKind: "order",
       document: order,
       lines: calcLines,
@@ -7777,6 +7784,7 @@ const orderLineDeleteCommand: CommandHandler<
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
     const calculationContext = await resolveDocumentCalculationContext({
       em,
+      container: ctx.container,
       documentKind: "order",
       document: order,
       lines: calcLines,
@@ -8090,6 +8098,7 @@ const quoteLineUpsertCommand: CommandHandler<
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
     const calculationContext = await resolveDocumentCalculationContext({
       em,
+      container: ctx.container,
       documentKind: "quote",
       document: quote,
       lines: calcLines,
@@ -8241,6 +8250,7 @@ const quoteLineDeleteCommand: CommandHandler<
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
     const calculationContext = await resolveDocumentCalculationContext({
       em,
+      container: ctx.container,
       documentKind: "quote",
       document: quote,
       lines: calcLines,
@@ -8461,6 +8471,7 @@ const orderAdjustmentUpsertCommand: CommandHandler<
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
     const calculationContext = await resolveDocumentCalculationContext({
       em,
+      container: ctx.container,
       documentKind: "order",
       document: order,
       lines: calcLines,
@@ -8681,6 +8692,7 @@ const orderAdjustmentDeleteCommand: CommandHandler<
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
     const calculationContext = await resolveDocumentCalculationContext({
       em,
+      container: ctx.container,
       documentKind: "order",
       document: order,
       lines: calcLines,
@@ -8914,6 +8926,7 @@ const quoteAdjustmentUpsertCommand: CommandHandler<
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
     const calculationContext = await resolveDocumentCalculationContext({
       em,
+      container: ctx.container,
       documentKind: "quote",
       document: quote,
       lines: calcLines,
@@ -9132,6 +9145,7 @@ const quoteAdjustmentDeleteCommand: CommandHandler<
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
     const calculationContext = await resolveDocumentCalculationContext({
       em,
+      container: ctx.container,
       documentKind: "quote",
       document: quote,
       lines: calcLines,
@@ -10424,6 +10438,7 @@ const recalculateDocumentTaxCommand: CommandHandler<
       const adjustmentDrafts = existingAdjustments.map(mapOrderAdjustmentToDraft);
       const calculationContext = await resolveDocumentCalculationContext({
         em,
+      container: ctx.container,
         documentKind: "order",
         document: order,
         lines: calcLines,
@@ -10482,6 +10497,7 @@ const recalculateDocumentTaxCommand: CommandHandler<
     const adjustmentDrafts = existingAdjustments.map(mapQuoteAdjustmentToDraft);
     const calculationContext = await resolveDocumentCalculationContext({
       em,
+      container: ctx.container,
       documentKind: "quote",
       document: quote,
       lines: calcLines,

@@ -1,5 +1,8 @@
 import type { EntityManager } from '@mikro-orm/postgresql'
+import { createLogger } from '@open-mercato/shared/lib/logger'
 import { CatalogProduct, CatalogProductVariant } from '../../../catalog/data/entities'
+import { readTaxProviderSelection } from '../taxProviderSelection'
+import { getTaxProvider } from './registry'
 import type { SalesDocumentKind } from '../types'
 import type {
   TaxAddress,
@@ -9,6 +12,8 @@ import type {
   TaxProductFacts,
   TaxProviderSelection,
 } from './types'
+
+const logger = createLogger('sales')
 
 export const DEFAULT_TAX_PROVIDER_KEY = 'table-rates'
 export const DEFAULT_TAX_PROVIDER_TIMEOUT_MS = 8000
@@ -49,6 +54,8 @@ export type ResolveTaxDocumentContextParams = {
    * already computed — so the common path adds no query to any document write.
    */
   loadProductFacts?: boolean
+  /** Used to reach the cache, the integration state and the credentials service. */
+  container?: { resolve: (key: string) => unknown } | null
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -233,16 +240,126 @@ function toIsoDate(value: Date | string | null | undefined): string {
   return new Date().toISOString()
 }
 
+type Container = { resolve: (key: string) => unknown }
+
 /**
- * Phase 1 selection: always the built in default. Phase 3 replaces this with
- * the per organization row, the integration state and the credentials closure.
+ * Soft optional: the integrations module is not a hard dependency of sales. When
+ * it is absent, a provider that needs it is simply unavailable and the document
+ * falls back — it never throws.
  */
-function resolveSelection(): TaxProviderSelection {
+function tryResolve<T>(container: Container | null | undefined, name: string): T | null {
+  if (!container) return null
+  try {
+    return (container.resolve(name) as T) ?? null
+  } catch {
+    return null
+  }
+}
+
+type IntegrationStateService = {
+  isEnabled(integrationId: string, scope: { tenantId: string; organizationId: string }): Promise<boolean>
+}
+
+type IntegrationCredentialsService = {
+  resolve(
+    integrationId: string,
+    scope: { tenantId: string; organizationId: string }
+  ): Promise<Record<string, unknown> | null>
+}
+
+/**
+ * Resolves the organization's selection and, when the provider declares an
+ * integration, whether that integration is enabled. The credentials themselves
+ * are NOT resolved here: they travel in a closure so they are fetched only if
+ * `calculate` actually runs, and so they never appear in a serialized context,
+ * an event payload or a log line.
+ */
+async function resolveSelection(params: {
+  em: EntityManager
+  container?: Container | null
+  tenantId: string
+  organizationId: string
+}): Promise<{ selection: TaxProviderSelection; shipFrom: TaxAddress | null; timeoutMs: number }> {
+  const row = await readTaxProviderSelection({
+    em: params.em,
+    container: params.container,
+    tenantId: params.tenantId,
+    organizationId: params.organizationId,
+  })
+
+  const providerKey = row.providerKey || DEFAULT_TAX_PROVIDER_KEY
+  const provider = getTaxProvider(providerKey)
+  const integrationId = provider?.integrationId ?? null
+
+  let integrationEnabled = true
+  if (integrationId) {
+    const stateService = tryResolve<IntegrationStateService>(params.container, 'integrationStateService')
+    if (!stateService) {
+      // The integrations module is absent, so its credentials cannot be read
+      // either; the stage degrades this to a fallback.
+      integrationEnabled = false
+    } else {
+      try {
+        integrationEnabled = await stateService.isEnabled(integrationId, {
+          tenantId: params.tenantId,
+          organizationId: params.organizationId,
+        })
+      } catch (err) {
+        logger.warn('integration state lookup failed; treating the tax provider as disabled', {
+          providerKey,
+          integrationId,
+          err,
+        })
+        integrationEnabled = false
+      }
+    }
+  }
+
   return {
-    providerKey: DEFAULT_TAX_PROVIDER_KEY,
-    settings: {},
-    integrationId: null,
-    integrationEnabled: true,
+    selection: {
+      providerKey,
+      settings: row.providerSettings ?? {},
+      integrationId,
+      integrationEnabled,
+    },
+    shipFrom: toTaxAddress(row.shipFromAddress),
+    timeoutMs: row.timeoutMs === null ? resolveDefaultTaxProviderTimeout() : clampTaxProviderTimeout(row.timeoutMs),
+  }
+}
+
+/**
+ * The credentials closure. It is a function on purpose: it survives the
+ * calculation hook, is called at most once and only when a provider that
+ * declares an integration is about to run, and vanishes in `JSON.stringify`, so
+ * no subscriber, event payload or log can ever see a secret.
+ */
+function buildCredentialsResolver(params: {
+  container?: Container | null
+  integrationId: string | null
+  tenantId: string
+  organizationId: string
+}): () => Promise<Record<string, unknown>> {
+  return async () => {
+    if (!params.integrationId) return {}
+    const service = tryResolve<IntegrationCredentialsService>(
+      params.container,
+      'integrationCredentialsService'
+    )
+    if (!service) return {}
+    try {
+      const resolved = await service.resolve(params.integrationId, {
+        tenantId: params.tenantId,
+        organizationId: params.organizationId,
+      })
+      return resolved ?? {}
+    } catch (err) {
+      // Deliberately logs the integration id and nothing from the blob.
+      logger.warn('tax provider credentials could not be resolved', {
+        integrationId: params.integrationId,
+        err,
+      })
+      return {}
+    }
   }
 }
 
@@ -255,7 +372,12 @@ export async function resolveTaxDocumentContext(
   params: ResolveTaxDocumentContextParams
 ): Promise<TaxDocumentContext> {
   const lines = params.lines ?? []
-  const selection = resolveSelection()
+  const { selection, shipFrom, timeoutMs } = await resolveSelection({
+    em: params.em,
+    container: params.container,
+    tenantId: params.tenantId,
+    organizationId: params.organizationId,
+  })
   const wantsProductFacts =
     params.loadProductFacts ?? selection.providerKey !== DEFAULT_TAX_PROVIDER_KEY
   const productFacts = wantsProductFacts
@@ -273,16 +395,20 @@ export async function resolveTaxDocumentContext(
     },
     customer: toTaxCustomer(params.customerSnapshot, params.billingAddressSnapshot),
     addresses: {
-      // Phase 3 fills this from `sales_settings.ship_from_address`.
-      shipFrom: null,
+      shipFrom,
       shipTo: toTaxAddress(params.shippingAddressSnapshot),
       billTo: toTaxAddress(params.billingAddressSnapshot),
     },
     productFacts,
     selection,
     // A closure, so credentials survive the hook and vanish in JSON.stringify.
-    resolveCredentials: async () => ({}),
-    timeoutMs: resolveDefaultTaxProviderTimeout(),
+    resolveCredentials: buildCredentialsResolver({
+      container: params.container,
+      integrationId: selection.integrationId,
+      tenantId: params.tenantId,
+      organizationId: params.organizationId,
+    }),
+    timeoutMs,
     totalsMode: params.totalsMode ?? 'computed',
     metadata: asRecord(params.metadata) ?? {},
   }
