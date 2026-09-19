@@ -5,6 +5,7 @@ import { getAuthFromRequest } from '@open-mercato/shared/lib/auth/server'
 import { createRequestContainer } from '@open-mercato/shared/lib/di/container'
 import { resolveTranslations } from '@open-mercato/shared/lib/i18n/server'
 import { resolveActiveOrganizationId, organizationScopeRequiredResponse } from '@open-mercato/shared/lib/auth/organizationScope'
+import { z } from 'zod'
 import { CrudHttpError } from '@open-mercato/shared/lib/crud/errors'
 import {
   bridgeLegacyGuard,
@@ -63,6 +64,23 @@ function serialize(record: MarketDisplayProfile) {
     // `CrudForm` derives the optimistic lock header from this, so it must always ship.
     updatedAt: record.updatedAt ? record.updatedAt.toISOString() : null,
   }
+}
+
+
+/**
+ * A rejected field is the caller's problem, not a server fault.
+ *
+ * Without this a zod failure would surface as an opaque 500 and the settings form would have
+ * nothing to show against the field that is actually wrong.
+ */
+function validationErrorResponse(error: unknown): Response | null {
+  if (!(error instanceof z.ZodError)) return null
+  const fieldErrors: Record<string, string> = {}
+  for (const issue of error.issues) {
+    const path = issue.path.join('.')
+    if (path && !fieldErrors[path]) fieldErrors[path] = issue.message
+  }
+  return Response.json({ error: 'Validation failed', fieldErrors }, { status: 400 })
 }
 
 function resolveUserFeatures(auth: unknown): string[] {
@@ -157,7 +175,12 @@ export async function PUT(req: Request) {
     if (error instanceof CrudHttpError) {
       return Response.json(error.body as Record<string, unknown>, { status: error.status })
     }
-    logger.error('Failed to save market display profile', { err: error })
+    const validation = validationErrorResponse(error)
+    if (validation) return validation
+    logger.error('Failed to save market display profile', {
+      err: error,
+      message: error instanceof Error ? error.message : String(error),
+    })
     return Response.json(
       { error: translate('markets.errors.saveFailed', 'Failed to save the market display profile.') },
       { status: 500 },
@@ -243,7 +266,12 @@ export async function DELETE(req: Request) {
     if (error instanceof CrudHttpError) {
       return Response.json(error.body as Record<string, unknown>, { status: error.status })
     }
-    logger.error('Failed to clear market display profile', { err: error })
+    const validation = validationErrorResponse(error)
+    if (validation) return validation
+    logger.error('Failed to clear market display profile', {
+      err: error,
+      message: error instanceof Error ? error.message : String(error),
+    })
     return Response.json(
       { error: translate('markets.errors.deleteFailed', 'Failed to clear the market display profile.') },
       { status: 500 },

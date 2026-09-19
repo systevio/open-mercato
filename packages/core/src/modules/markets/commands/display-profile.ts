@@ -99,6 +99,24 @@ async function invalidateProfileCache(
   }
 }
 
+/**
+ * Fill a partial request from the seed template its `code` names.
+ *
+ * An explicitly supplied field always wins; only absent ones come from the template. A `code` with
+ * no template (a market an operator invented) passes through untouched, so validation reports the
+ * genuinely missing fields rather than a confusing template error.
+ */
+function withTemplateDefaults(input: unknown): Record<string, unknown> {
+  const body = (input ?? {}) as Record<string, unknown>
+  const template = getMarketTemplate(typeof body.code === 'string' ? body.code : null)
+  if (!template) return body
+  const merged: Record<string, unknown> = { ...templateToRowValues(template) }
+  for (const [key, value] of Object.entries(body)) {
+    if (value !== undefined) merged[key] = value
+  }
+  return merged
+}
+
 async function loadProfileSnapshot(
   em: EntityManager,
   ctx: CommandRuntimeContext,
@@ -121,7 +139,10 @@ async function loadProfileSnapshot(
 const createProfileCommand: CommandHandler<MarketDisplayProfileCreateInput, { profileId: string }> = {
   id: 'markets.market_display_profile.create',
   async execute(input, ctx) {
-    const parsed = marketDisplayProfileCreateSchema.parse(input)
+    // Picking a market is a one-field action: `{ code: 'us' }` is a complete request, and the seed
+    // template supplies the rest. Validation still runs over the merged result, so an explicit
+    // field is checked exactly as it would be on update.
+    const parsed = marketDisplayProfileCreateSchema.parse(withTemplateDefaults(input))
     const scope = resolveMarketScope(ctx)
     if (!scope) throw notFound('Organization scope is required to pick a market.')
 
@@ -139,8 +160,11 @@ const createProfileCommand: CommandHandler<MarketDisplayProfileCreateInput, { pr
       ...parsed,
       isActive: parsed.isActive !== false,
     } as unknown as MarketDisplayProfile)
-    em.persist(record)
-    await withAtomicFlush(em, [], { transaction: true, label: 'markets.market_display_profile.create' })
+    // The persist belongs INSIDE a phase: `withAtomicFlush` flushes after each phase, so an empty
+    // phase list flushes nothing and the row never reaches the database.
+    await withAtomicFlush(em, [
+      () => { em.persist(record) },
+    ], { transaction: true, label: 'markets.market_display_profile.create' })
 
     await invalidateProfileCache(ctx, scope)
     const de = ctx.container.resolve('dataEngine') as DataEngine
