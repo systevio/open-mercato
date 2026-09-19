@@ -76,10 +76,14 @@ export async function ensureMarketDisplayProfile(
     return existing
   }
 
+  const now = new Date()
   const created = em.create(MarketDisplayProfile, {
     organizationId: scope.organizationId,
     tenantId: scope.tenantId,
     isActive: true,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
     ...templateToRowValues(template),
   })
   await em.flush()
