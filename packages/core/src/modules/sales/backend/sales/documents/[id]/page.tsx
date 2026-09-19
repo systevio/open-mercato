@@ -26,6 +26,7 @@ import { Input } from '@open-mercato/ui/primitives/input'
 import { EmailInput } from '@open-mercato/ui/primitives/email-input'
 import { formatDisplayDate, formatDisplayDateTime, toDateInputValue, toUtcDateInputValue } from '@open-mercato/ui/primitives/date-format'
 import { formatMoney as formatMarketMoney } from '@open-mercato/shared/lib/display/money'
+import { resolvePriceLabelKey, showsSinglePricePlusTax, taxLineLabelKey, taxNoteKey } from '@open-mercato/shared/lib/display/price'
 import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
 import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@open-mercato/ui/primitives/dialog'
@@ -2888,17 +2889,36 @@ export default function SalesDocumentDetailPage({
   )
   const totalsItems = React.useMemo(() => {
     if (!record) return []
-    const items: { key: string; label: string; amount: number | null | undefined; emphasize?: boolean }[] = [
+    // Under `single_price_plus_tax` a document shows ONE price per row plus a separate tax line, so
+    // the gross twin of every net row is dropped rather than relabelled - two rows both reading
+    // "Subtotal" would be worse than the net/gross pair they replace. The net amount is the one
+    // that survives, because the tax line is separate and a gross amount beside it double counts.
+    const singlePrice = showsSinglePricePlusTax(displayProfile)
+    const priceLabel = (baseKey: string, fallback: string) =>
+      t(resolvePriceLabelKey(baseKey, displayProfile), fallback)
+    const taxIsEstimate = (record.taxStatus ?? null) !== 'calculated'
+    const marketTaxNoteKey = taxNoteKey(displayProfile)
+    const items: {
+      key: string
+      label: string
+      amount: number | null | undefined
+      emphasize?: boolean
+      note?: string
+    }[] = [
       {
         key: 'subtotalNetAmount',
-        label: t('sales.documents.detail.totals.subtotalNet', 'Subtotal (net)'),
+        label: priceLabel('sales.documents.detail.totals.subtotalNet', 'Subtotal (net)'),
         amount: record.subtotalNetAmount ?? null,
       },
-      {
+    ]
+    if (!singlePrice) {
+      items.push({
         key: 'subtotalGrossAmount',
         label: t('sales.documents.detail.totals.subtotalGross', 'Subtotal (gross)'),
         amount: record.subtotalGrossAmount ?? null,
-      },
+      })
+    }
+    items.push(
       {
         key: 'discountTotalAmount',
         label: t('sales.documents.detail.totals.discountTotal', 'Discounts'),
@@ -2906,28 +2926,29 @@ export default function SalesDocumentDetailPage({
       },
       {
         key: 'taxTotalAmount',
-        label: t('sales.documents.detail.totals.taxTotal', 'Tax total'),
+        label: t(taxLineLabelKey(displayProfile), t('sales.documents.detail.totals.taxTotal', 'Tax total')),
         amount: record.taxTotalAmount ?? null,
+        note: singlePrice && taxIsEstimate && marketTaxNoteKey ? t(marketTaxNoteKey) : undefined,
       },
-    ]
+    )
     if (kind === 'order') {
-      items.push(
-        {
-          key: 'shippingNetAmount',
-          label: t('sales.documents.detail.totals.shippingNet', 'Shipping (net)'),
-          amount: record.shippingNetAmount ?? null,
-        },
-        {
+      items.push({
+        key: 'shippingNetAmount',
+        label: priceLabel('sales.documents.detail.totals.shippingNet', 'Shipping (net)'),
+        amount: record.shippingNetAmount ?? null,
+      })
+      if (!singlePrice) {
+        items.push({
           key: 'shippingGrossAmount',
           label: t('sales.documents.detail.totals.shippingGross', 'Shipping (gross)'),
           amount: record.shippingGrossAmount ?? null,
-        },
-        {
-          key: 'surchargeTotalAmount',
-          label: t('sales.documents.detail.totals.surchargeTotal', 'Surcharges'),
-          amount: record.surchargeTotalAmount ?? null,
-        }
-      )
+        })
+      }
+      items.push({
+        key: 'surchargeTotalAmount',
+        label: t('sales.documents.detail.totals.surchargeTotal', 'Surcharges'),
+        amount: record.surchargeTotalAmount ?? null,
+      })
     }
     if (adjustmentRows.length) {
       adjustmentRows.forEach((adj) => {
@@ -2938,20 +2959,20 @@ export default function SalesDocumentDetailPage({
         })
       })
     }
-    items.push(
-      {
-        key: 'grandTotalNetAmount',
-        label: t('sales.documents.detail.totals.grandTotalNet', 'Grand total (net)'),
-        amount: record.grandTotalNetAmount ?? null,
-        emphasize: true,
-      },
-      {
+    items.push({
+      key: 'grandTotalNetAmount',
+      label: priceLabel('sales.documents.detail.totals.grandTotalNet', 'Grand total (net)'),
+      amount: record.grandTotalNetAmount ?? null,
+      emphasize: true,
+    })
+    if (!singlePrice) {
+      items.push({
         key: 'grandTotalGrossAmount',
         label: t('sales.documents.detail.totals.grandTotalGross', 'Grand total (gross)'),
         amount: record.grandTotalGrossAmount ?? null,
         emphasize: true,
-      }
-    )
+      })
+    }
     if (kind === 'order') {
       items.push(
         {
@@ -2974,6 +2995,7 @@ export default function SalesDocumentDetailPage({
     }
     return items
   }, [
+    displayProfile,
     kind,
     record,
     record?.discountTotalAmount,

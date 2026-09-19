@@ -6,7 +6,7 @@ import { addressDisplayProfile, formatAddress, resolveAddressLayout, validateAdd
 import { formatPhone, normalizePhoneInput } from '../phone'
 import { convertUnit, formatLength, formatWeight } from '../units'
 import { paperSize } from '../paper'
-import { resolvePriceLabelKey, showsSinglePricePlusTax } from '../price'
+import { resolvePriceLabelKey, showsSinglePricePlusTax, taxLineLabelKey, taxNoteKey } from '../price'
 import { getSubdivisions, isValidSubdivision } from '../../location/subdivisions'
 
 describe('profile', () => {
@@ -267,12 +267,14 @@ describe('price presentation', () => {
     expect(showsSinglePricePlusTax(EU_DISPLAY_TEMPLATE)).toBe(false)
     expect(showsSinglePricePlusTax(null)).toBe(false)
 
-    expect(resolvePriceLabelKey('sales.documents.totals.totalNet', US_DISPLAY_TEMPLATE))
-      .toBe('sales.documents.totals.total')
-    expect(resolvePriceLabelKey('sales.documents.totals.totalNet', EU_DISPLAY_TEMPLATE))
-      .toBe('sales.documents.totals.totalNet')
-    expect(resolvePriceLabelKey('sales.documents.totals.totalNet', null))
-      .toBe('sales.documents.totals.totalNet')
+    // The keys are the ones the document detail page actually renders; the first draft of this map
+    // guessed at names no surface used, so a US tenant kept reading "Grand total (net)".
+    expect(resolvePriceLabelKey('sales.documents.detail.totals.grandTotalNet', US_DISPLAY_TEMPLATE))
+      .toBe('sales.documents.detail.totals.grandTotal')
+    expect(resolvePriceLabelKey('sales.documents.detail.totals.grandTotalNet', EU_DISPLAY_TEMPLATE))
+      .toBe('sales.documents.detail.totals.grandTotalNet')
+    expect(resolvePriceLabelKey('sales.documents.detail.totals.grandTotalNet', null))
+      .toBe('sales.documents.detail.totals.grandTotalNet')
     expect(resolvePriceLabelKey('some.unmapped.key', US_DISPLAY_TEMPLATE)).toBe('some.unmapped.key')
   })
 })
@@ -302,5 +304,28 @@ describe('compact money', () => {
   it('leaves the standard notation untouched', () => {
     expect(formatMoney(48_250, 'USD', US_DISPLAY_TEMPLATE, { maximumFractionDigits: 2, minimumFractionDigits: 2 }))
       .toBe('$48,250.00')
+  })
+})
+
+describe('neutral price labels', () => {
+  it('collapses the net and gross twins a document renders today', () => {
+    for (const [base, neutral] of [
+      ['sales.documents.detail.totals.subtotalNet', 'sales.documents.detail.totals.subtotal'],
+      ['sales.documents.detail.totals.subtotalGross', 'sales.documents.detail.totals.subtotal'],
+      ['sales.documents.detail.totals.shippingNet', 'sales.documents.detail.totals.shipping'],
+      ['sales.documents.detail.totals.grandTotalGross', 'sales.documents.detail.totals.grandTotal'],
+    ]) {
+      expect(resolvePriceLabelKey(base, US_DISPLAY_TEMPLATE)).toBe(neutral)
+      expect(resolvePriceLabelKey(base, EU_DISPLAY_TEMPLATE)).toBe(base)
+      expect(resolvePriceLabelKey(base, null)).toBe(base)
+    }
+  })
+
+  it('names the tax line and its estimate note from the market', () => {
+    expect(taxLineLabelKey(US_DISPLAY_TEMPLATE)).toBe('markets.tax.label.salesTax')
+    expect(taxLineLabelKey(EU_DISPLAY_TEMPLATE)).toBe('markets.tax.label.vat')
+    expect(taxNoteKey(US_DISPLAY_TEMPLATE)).toBe('markets.tax.note.calculatedAtOrder')
+    expect(taxNoteKey(EU_DISPLAY_TEMPLATE)).toBeNull()
+    expect(taxNoteKey(null)).toBeNull()
   })
 })
