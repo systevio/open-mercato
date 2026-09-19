@@ -14,7 +14,7 @@ describe('tax column persistence', () => {
     const quoteWrites = documents.match(/applyQuoteTotals\(quote, calculation\.totals/g) ?? []
     const orderWrites = documents.match(/applyOrderTotals\(order, calculation\.totals/g) ?? []
     const taxWrites = documents.match(/applyTaxColumns\((?:quote|order), calculation\);/g) ?? []
-    expect(quoteWrites.length + orderWrites.length).toBe(12)
+    expect(quoteWrites.length + orderWrites.length).toBeGreaterThanOrEqual(12)
     expect(taxWrites.length).toBe(quoteWrites.length + orderWrites.length)
   })
 

@@ -27,7 +27,7 @@
 | 2 | 2.3 | Tax columns through command snapshots and undo | inline | done | — |
 | 2 | 2.4 | Invoice and credit memo inheritance | inline | done | — |
 | 2 | 2.5 | Expose the tax fields on the document APIs | inline | done | — |
-| 2 | 2.6 | Recalculate tax command and route | inline | todo | — |
+| 2 | 2.6 | Recalculate tax command and route | inline | done | — |
 | 2 | 2.7 | Document detail: status badge, breakdown, banner | inline | todo | — |
 | 2 | 2.8 | Order lifecycle tax block and acceptance test 1 | inline | todo | — |
 | 3 | 3.1 | SalesSettings tax provider columns | inline | todo | — |

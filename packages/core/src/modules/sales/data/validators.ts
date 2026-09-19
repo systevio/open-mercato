@@ -899,6 +899,16 @@ export const returnDeleteSchema = scoped.extend({
   orderId: uuid(),
 })
 
+/**
+ * Recalculates the tax on an existing order or quote without touching any line
+ * or header field. Invoices and credit memos inherit their tax from the
+ * document they were raised from, so they are not recalculable.
+ */
+export const recalculateDocumentTaxSchema = z.object({
+  documentId: uuid(),
+  documentKind: z.enum(['order', 'quote']),
+})
+
 export const invoiceCreateSchema = scoped.extend({
   orderId: uuid().optional(),
   invoiceNumber: z.string().trim().min(1).max(191).optional(),

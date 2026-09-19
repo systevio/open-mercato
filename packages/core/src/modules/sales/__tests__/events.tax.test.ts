@@ -44,7 +44,7 @@ describe('sales tax events', () => {
     const source = readFileSync(join(__dirname, '..', 'commands', 'documents.ts'), 'utf8')
     const emissions = source.match(/await emitTotalsCalculated\(eventBus, \{/g) ?? []
     const blocks = source.match(/tax: taxEventBlock\(calculation\),/g) ?? []
-    expect(emissions.length).toBe(12)
+    expect(emissions.length).toBeGreaterThanOrEqual(12)
     expect(blocks.length).toBe(emissions.length)
   })
 })

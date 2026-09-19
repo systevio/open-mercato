@@ -79,6 +79,7 @@ describe('sales command registration', () => {
         'sales.credit_memos.create',
         'sales.credit_memos.update',
         'sales.credit_memos.delete',
+        'sales.documents.recalculate_tax',
       ],
     },
     {

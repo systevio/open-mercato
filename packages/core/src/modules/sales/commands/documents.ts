@@ -95,6 +95,7 @@ import {
   type OrderAdjustmentCreateInput,
   type InvoiceCreateInput,
   type CreditMemoCreateInput,
+  recalculateDocumentTaxSchema,
 } from "../data/validators";
 import {
   ensureOrganizationScope,
@@ -10341,6 +10342,208 @@ const deleteCreditMemoCommand: CommandHandler<
   },
 };
 
+/**
+ * Re-runs the tax stage on a document that already exists, without touching any
+ * line or header field. It is the action behind the "Recalculate" button the
+ * detail page shows on a fallback: a provider outage should not become a
+ * mispriced invoice, and the merchant should be able to retry once the vendor is
+ * back without editing the document.
+ *
+ * Status guards that forbid edits do not apply, because nothing a guard protects
+ * changes — only the tax amounts and the five provenance columns.
+ */
+const recalculateDocumentTaxCommand: CommandHandler<
+  { body?: Record<string, unknown>; query?: Record<string, unknown> },
+  { documentId: string; documentKind: SalesDocumentKind; taxStatus: string | null; taxCalculatedAt: string | null }
+> = {
+  id: "sales.documents.recalculate_tax",
+  async prepare(input, ctx) {
+    const raw = (input?.body as Record<string, unknown> | undefined) ?? {};
+    const documentId = typeof raw.documentId === "string" ? raw.documentId : null;
+    const documentKind = typeof raw.documentKind === "string" ? raw.documentKind : null;
+    if (!documentId || (documentKind !== "order" && documentKind !== "quote")) return {};
+    const em = ctx.container.resolve("em") as EntityManager;
+    if (documentKind === "order") {
+      const snapshot = await loadOrderSnapshot(em, documentId);
+      if (snapshot) ensureOrderScope(ctx, snapshot.order.organizationId, snapshot.order.tenantId);
+      return snapshot ? { before: snapshot } : {};
+    }
+    const snapshot = await loadQuoteSnapshot(em, documentId);
+    if (snapshot) ensureQuoteScope(ctx, snapshot.quote.organizationId, snapshot.quote.tenantId);
+    return snapshot ? { before: snapshot } : {};
+  },
+  async execute(input, ctx) {
+    const parsed = recalculateDocumentTaxSchema.parse(
+      (input?.body as Record<string, unknown> | undefined) ?? {},
+    );
+    const em = (ctx.container.resolve("em") as EntityManager).fork();
+    const salesCalculationService =
+      ctx.container.resolve<SalesCalculationService>("salesCalculationService");
+    let eventBus: EventBus | null = null;
+    try {
+      eventBus = ctx.container.resolve("eventBus") as EventBus;
+    } catch {
+      eventBus = null;
+    }
+
+    if (parsed.documentKind === "order") {
+      const order = await findOneWithDecryption(em, SalesOrder, {
+        id: parsed.documentId,
+        deletedAt: null,
+      });
+      if (!order) throw notFound("Sales order not found");
+      ensureOrderScope(ctx, order.organizationId, order.tenantId);
+      await enforceSalesDocumentOptimisticLock(ctx, order, SALES_RESOURCE_KIND_ORDER);
+
+      const [existingLines, existingAdjustments] = await Promise.all([
+        em.find(SalesOrderLine, { order }, { orderBy: { lineNumber: "asc" } }),
+        em.find(SalesOrderAdjustment, { order }, { orderBy: { position: "asc" } }),
+      ]);
+      const calcLines = existingLines
+        .map(mapOrderLineEntityToSnapshot)
+        .map((line, index) => createLineSnapshotFromInput(line, line.lineNumber ?? index + 1));
+      const adjustmentDrafts = existingAdjustments.map(mapOrderAdjustmentToDraft);
+      const calculationContext = await resolveDocumentCalculationContext({
+        em,
+        documentKind: "order",
+        document: order,
+        lines: calcLines,
+      });
+      const calculation = await salesCalculationService.calculateDocumentTotals({
+        documentKind: "order",
+        lines: calcLines,
+        adjustments: adjustmentDrafts,
+        context: calculationContext,
+        existingTotals: resolveExistingPaymentTotals(order),
+      });
+      await withAtomicFlush(
+        em,
+        [
+          async () => {
+            applyOrderTotals(order, calculation.totals, calculation.lines.length);
+            applyTaxColumns(order, calculation);
+            order.updatedAt = new Date();
+            await emitTotalsCalculated(eventBus, {
+              documentKind: "order",
+              documentId: order.id,
+              organizationId: order.organizationId,
+              tenantId: order.tenantId,
+              customerId: order.customerEntityId ?? null,
+              totals: calculation.totals,
+              lineCount: calculation.lines.length,
+              tax: taxEventBlock(calculation),
+            });
+          },
+        ],
+        { transaction: true },
+      );
+      return {
+        documentId: order.id,
+        documentKind: "order" as const,
+        taxStatus: order.taxStatus ?? null,
+        taxCalculatedAt: order.taxCalculatedAt ? order.taxCalculatedAt.toISOString() : null,
+      };
+    }
+
+    const quote = await findOneWithDecryption(em, SalesQuote, {
+      id: parsed.documentId,
+      deletedAt: null,
+    });
+    if (!quote) throw notFound("Sales quote not found");
+    ensureQuoteScope(ctx, quote.organizationId, quote.tenantId);
+    await enforceSalesDocumentOptimisticLock(ctx, quote, SALES_RESOURCE_KIND_QUOTE);
+
+    const [existingLines, existingAdjustments] = await Promise.all([
+      em.find(SalesQuoteLine, { quote }, { orderBy: { lineNumber: "asc" } }),
+      em.find(SalesQuoteAdjustment, { quote }, { orderBy: { position: "asc" } }),
+    ]);
+    const calcLines = existingLines
+      .map(mapQuoteLineEntityToSnapshot)
+      .map((line, index) => createLineSnapshotFromInput(line, line.lineNumber ?? index + 1));
+    const adjustmentDrafts = existingAdjustments.map(mapQuoteAdjustmentToDraft);
+    const calculationContext = await resolveDocumentCalculationContext({
+      em,
+      documentKind: "quote",
+      document: quote,
+      lines: calcLines,
+    });
+    const calculation = await salesCalculationService.calculateDocumentTotals({
+      documentKind: "quote",
+      lines: calcLines,
+      adjustments: adjustmentDrafts,
+      context: calculationContext,
+    });
+    await withAtomicFlush(
+      em,
+      [
+        async () => {
+          applyQuoteTotals(quote, calculation.totals, calculation.lines.length);
+          applyTaxColumns(quote, calculation);
+          quote.updatedAt = new Date();
+          await emitTotalsCalculated(eventBus, {
+            documentKind: "quote",
+            documentId: quote.id,
+            organizationId: quote.organizationId,
+            tenantId: quote.tenantId,
+            customerId: quote.customerEntityId ?? null,
+            totals: calculation.totals,
+            lineCount: calculation.lines.length,
+            tax: taxEventBlock(calculation),
+          });
+        },
+      ],
+      { transaction: true },
+    );
+    return {
+      documentId: quote.id,
+      documentKind: "quote" as const,
+      taxStatus: quote.taxStatus ?? null,
+      taxCalculatedAt: quote.taxCalculatedAt ? quote.taxCalculatedAt.toISOString() : null,
+    };
+  },
+  captureAfter: async (_input, result, ctx) => {
+    const em = (ctx.container.resolve("em") as EntityManager).fork();
+    return result.documentKind === "order"
+      ? loadOrderSnapshot(em, result.documentId)
+      : loadQuoteSnapshot(em, result.documentId);
+  },
+  buildLog: async ({ snapshots, result }) => {
+    const after = snapshots.after as OrderGraphSnapshot | QuoteGraphSnapshot | undefined;
+    if (!after) return null;
+    const header = "order" in after ? after.order : after.quote;
+    const { translate } = await resolveTranslations();
+    return {
+      actionLabel: translate("sales.audit.documents.recalculateTax", "Recalculate document tax"),
+      resourceKind: result.documentKind === "order" ? "sales.order" : "sales.quote",
+      resourceId: result.documentId,
+      tenantId: header.tenantId,
+      organizationId: header.organizationId,
+      snapshotBefore: (snapshots.before as OrderGraphSnapshot | QuoteGraphSnapshot | undefined) ?? null,
+      snapshotAfter: after,
+      payload: {
+        undo: { before: snapshots.before, after: snapshots.after },
+      },
+    };
+  },
+  // Undo restores the stored graph. It never calls a provider: the previous tax
+  // result is already in the snapshot, and re-running the vendor would be a
+  // second billable call that could return a third answer.
+  undo: async ({ logEntry, ctx }) => {
+    const payload = extractUndoPayload<{ before?: OrderGraphSnapshot | QuoteGraphSnapshot | null }>(logEntry);
+    const before = payload?.before;
+    if (!before) return;
+    const em = (ctx.container.resolve("em") as EntityManager).fork();
+    if ("order" in before) {
+      ensureOrderScope(ctx, before.order.organizationId, before.order.tenantId);
+      await restoreOrderGraph(em, before);
+    } else {
+      ensureQuoteScope(ctx, before.quote.organizationId, before.quote.tenantId);
+      await restoreQuoteGraph(em, before.quote);
+    }
+    await em.flush();
+  },
+};
+
 registerCommand(updateQuoteCommand);
 registerCommand(createQuoteCommand);
 registerCommand(deleteQuoteCommand);
@@ -10362,3 +10565,4 @@ registerCommand(deleteInvoiceCommand);
 registerCommand(createCreditMemoCommand);
 registerCommand(updateCreditMemoCommand);
 registerCommand(deleteCreditMemoCommand);
+registerCommand(recalculateDocumentTaxCommand);

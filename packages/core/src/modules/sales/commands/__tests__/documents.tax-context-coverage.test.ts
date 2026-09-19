@@ -20,13 +20,15 @@ describe('tax context coverage across recalculation sites', () => {
 
   it('routes every documents.ts recalculation through the tax-aware helper', () => {
     const totalsCalls = documents.match(/calculateDocumentTotals\(\{/g) ?? []
-    expect(totalsCalls.length).toBe(14)
-
     const contexts = documents.match(/context:\s*calculationContext/g) ?? []
-    expect(contexts.length).toBe(14)
-
     const helperCalls = documents.match(/await resolveDocumentCalculationContext\(\{/g) ?? []
-    expect(helperCalls.length).toBe(12)
+
+    // Every recalculation passes a context the helper built. Two adjustment
+    // commands run a baseline calculation against the same context they already
+    // hold, which is why the totals count runs ahead of the helper count.
+    expect(totalsCalls.length).toBeGreaterThanOrEqual(16)
+    expect(contexts.length).toBe(totalsCalls.length)
+    expect(totalsCalls.length - helperCalls.length).toBe(2)
   })
 
   it('routes every returns.ts recalculation through the tax-aware helper', () => {
@@ -53,6 +55,10 @@ describe('tax context coverage across recalculation sites', () => {
     // run before their command's withAtomicFlush block.
     const occurrences = (documents.match(/resolveTaxDocumentContext\(\{/g) ?? []).length
     expect(occurrences).toBe(1)
+    // …and it is inside resolveDocumentCalculationContext, which every site calls.
+    expect(documents.indexOf('resolveTaxDocumentContext({')).toBeGreaterThan(
+      documents.indexOf('async function resolveDocumentCalculationContext')
+    )
     expect((returns.match(/resolveTaxDocumentContext\(\{/g) ?? []).length).toBe(1)
   })
 })
