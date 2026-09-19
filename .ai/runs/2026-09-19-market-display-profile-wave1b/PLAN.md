@@ -18,8 +18,8 @@
 | 2 | 2.3 | Customers surfaces: people, companies, deals, detail cards, phone in `formConfig` | inline | done | 1e4504508 |
 | 2 | 2.4 | CRM calendar: `range.ts`, `MonthGrid`, `AgendaList`, conflicts route | inline | done | 45ec3c8f6 |
 | 2 | 2.6a | Sales documents: money and dates through the helpers | inline | done | 71102151b |
-| 2 | 2.6b | Sales documents: the price presentation switch and the tax line | inline | done | — |
-| 2 | 2.7 | Public quote page and quote emails via a server-built preformatted view model | inline | todo | — |
+| 2 | 2.6b | Sales documents: the price presentation switch and the tax line | inline | done | 9fd947875 |
+| 2 | 2.7 | Public quote page and quote emails via a server-built preformatted view model | inline | done | — |
 | 2 | 2.8 | Catalog product forms: single price field, unit placeholders, `tax_code` and `is_taxable` | inline | todo | — |
 | 2 | 2.9 | Tax rates wording: "Tax rates" in place of "VAT classes" | inline | todo | — |
 | 2 | 2.10 | Sales channel and WMS warehouse address forms pick up the shared layout | inline | todo | — |
