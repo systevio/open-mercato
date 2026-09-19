@@ -417,6 +417,64 @@ describe('tax stage', () => {
     expect(info.totals.exemptTotal).toBeCloseTo(info.totals.taxableTotal, 4)
   })
 
+  it('applies charge tax to the right adjustment when a line-scoped one precedes it', async () => {
+    // Regression: the request enumerated only the ORDER-scoped adjustments
+    // while the apply pass walked ALL of them. With a line-scoped adjustment
+    // first and an anonymous order-scoped one after it (no id, no
+    // calculatorKey), the positional fallback produced two different ids and
+    // the provider's tax for that charge was dropped without a trace.
+    let requestedChargeIds: string[] = []
+    registerSpyProvider('charge-identity', ({ request }) => {
+      requestedChargeIds = request.charges.map((charge) => charge.id)
+      return {
+        status: 'calculated',
+        lines: request.lines.map((line) => ({
+          lineId: line.id,
+          taxAmount: 0,
+          taxableAmount: line.amountNet,
+          exemptAmount: 0,
+          rate: 0,
+          details: [],
+        })),
+        charges: request.charges.map((charge) => ({
+          chargeId: charge.id,
+          taxAmount: 3,
+          taxableAmount: charge.amountNet,
+          rate: 30,
+          details: [],
+        })),
+        totals: { taxTotal: 3 * request.charges.length, taxableTotal: 0, exemptTotal: 0 },
+      }
+    })
+
+    const result = await calculate({
+      tax: makeTaxContext({
+        selection: {
+          providerKey: 'charge-identity',
+          settings: {},
+          integrationId: null,
+          integrationEnabled: true,
+        },
+      }),
+      adjustments: [
+        // Line-scoped, so it is absent from the request but present in the
+        // adjustment array the apply pass walks.
+        { scope: 'line', kind: 'discount', amountNet: 5, amountGross: 5, currencyCode: 'USD' },
+        // Anonymous and order-scoped: the only case the positional fallback
+        // was ever used for.
+        { scope: 'order', kind: 'shipping', amountNet: 10, amountGross: 10, currencyCode: 'USD' },
+      ],
+    })
+
+    expect(requestedChargeIds).toEqual(['shipping-0'])
+    const shipping = result.adjustments.find(
+      (adjustment) => adjustment.kind === 'shipping' && (adjustment.scope ?? 'order') === 'order'
+    )
+    // 10 net + the provider's 3 of tax. Before the fix this stayed at 10.
+    expect(Number(shipping?.amountGross)).toBeCloseTo(13, 4)
+    expect((shipping?.metadata as Record<string, unknown>)?.taxRate).toBe(30)
+  })
+
   it('emits sales.tax.calculation.failed for every fallback', async () => {
     const emitted: Array<{ id: string; payload: Record<string, unknown> }> = []
     const eventBus = {

@@ -27,6 +27,23 @@ const logger = createLogger('sales')
 const SAVE_CONTEXT_ID = 'sales-tax-provider-settings'
 const DEFAULT_PROVIDER_KEY = 'table-rates'
 
+/**
+ * The built in providers are defined in core, so their label and description
+ * are plain English on the provider object. They are translated here; an
+ * external package is not in this map and keeps its own label, which it ships
+ * with its own locale files.
+ */
+const BUILT_IN_PROVIDER_I18N: Record<string, { label: string; description: string }> = {
+  'table-rates': {
+    label: 'sales.providers.tax.tableRates.label',
+    description: 'sales.providers.tax.tableRates.description',
+  },
+  'fixed-rate': {
+    label: 'sales.providers.tax.fixedRate.label',
+    description: 'sales.providers.tax.fixedRate.description',
+  },
+}
+
 type TaxProviderOption = {
   key: string
   label: string
@@ -159,6 +176,23 @@ export function TaxProviderSettings() {
     void loadSettings()
   }, [loadSettings, scopeVersion])
 
+  const providerLabel = React.useCallback(
+    (provider: TaxProviderOption) => {
+      const keys = BUILT_IN_PROVIDER_I18N[provider.key]
+      return keys ? t(keys.label, provider.label) : provider.label
+    },
+    [t]
+  )
+
+  const providerDescription = React.useCallback(
+    (provider: TaxProviderOption) => {
+      const keys = BUILT_IN_PROVIDER_I18N[provider.key]
+      if (keys) return t(keys.description, provider.description ?? '')
+      return provider.description ?? null
+    },
+    [t]
+  )
+
   const selectedProvider = React.useMemo(
     () => providers.find((provider) => provider.key === providerKey) ?? null,
     [providerKey, providers]
@@ -244,13 +278,13 @@ export function TaxProviderSettings() {
           <SelectContent>
             {providers.map((provider) => (
               <SelectItem key={provider.key} value={provider.key}>
-                {provider.label}
+                {providerLabel(provider)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        {selectedProvider?.description ? (
-          <p className="text-xs text-muted-foreground">{selectedProvider.description}</p>
+        {selectedProvider && providerDescription(selectedProvider) ? (
+          <p className="text-xs text-muted-foreground">{providerDescription(selectedProvider)}</p>
         ) : null}
       </div>
 

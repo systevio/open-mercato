@@ -31,6 +31,12 @@ export type TaxInfoView = {
   failure?: { code?: string | null; message?: string | null; at?: string | null; providerKey?: string | null } | null
 }
 
+/** Mirrors the settings section: built in provider keys get a translated name. */
+const BUILT_IN_PROVIDER_LABELS: Record<string, string> = {
+  'table-rates': 'sales.providers.tax.tableRates.label',
+  'fixed-rate': 'sales.providers.tax.fixedRate.label',
+}
+
 const statusVariants: Record<string, StatusBadgeVariant> = {
   calculated: 'success',
   exempt: 'info',
@@ -164,7 +170,10 @@ export function TaxBreakdownSection({
           <div className="flex items-center gap-2">
             {providerKey ? (
               <span className="text-xs text-muted-foreground">
-                {t('sales.documents.detail.tax.provider', 'Provider')}: {providerKey}
+                {t('sales.documents.detail.tax.provider', 'Provider')}:{' '}
+                {BUILT_IN_PROVIDER_LABELS[providerKey]
+                  ? t(BUILT_IN_PROVIDER_LABELS[providerKey], providerKey)
+                  : providerKey}
               </span>
             ) : null}
             <StatusBadge variant={variant} dot>

@@ -102,8 +102,24 @@ function isOrderScoped(adjustment: SalesAdjustmentDraft): boolean {
   return (adjustment.scope ?? 'order') === 'order'
 }
 
-function chargeId(adjustment: SalesAdjustmentDraft, index: number): string {
-  return adjustment.id ?? adjustment.calculatorKey ?? `${adjustment.kind}-${index}`
+/**
+ * Assigns every order-scoped adjustment a stable charge id, once, for the whole
+ * stage. Deriving it separately on the request side and the apply side is how a
+ * positional fallback silently breaks: the request enumerates only the
+ * order-scoped adjustments while the apply pass walks all of them, so a single
+ * line-scoped adjustment earlier in the array shifts the index and the
+ * provider's tax for that charge is dropped without a trace. One map, built
+ * once, cannot disagree with itself.
+ */
+function buildChargeIds(adjustments: SalesAdjustmentDraft[]): Map<SalesAdjustmentDraft, string> {
+  const ids = new Map<SalesAdjustmentDraft, string>()
+  let position = 0
+  for (const adjustment of adjustments) {
+    if (!isOrderScoped(adjustment)) continue
+    ids.set(adjustment, adjustment.id ?? adjustment.calculatorKey ?? `${adjustment.kind}-${position}`)
+    position += 1
+  }
+  return ids
 }
 
 /**
@@ -116,6 +132,7 @@ export function buildTaxCalculationRequest(params: {
   tax: TaxDocumentContext
   context: SalesCalculationContext
   document: SalesDocumentCalculationResult
+  chargeIds: Map<SalesAdjustmentDraft, string>
 }): TaxCalculationRequest {
   const { tax, document } = params
 
@@ -157,12 +174,12 @@ export function buildTaxCalculationRequest(params: {
 
   const charges: TaxRequestCharge[] = document.adjustments
     .filter(isOrderScoped)
-    .map((adjustment, index) => {
+    .map((adjustment) => {
       const amountNet = toNumber(adjustment.amountNet, toNumber(adjustment.amountGross, 0))
       const amountGross = toNumber(adjustment.amountGross, amountNet)
       const taxRate = extractAdjustmentTaxRate(adjustment)
       return {
-        id: chargeId(adjustment, index),
+        id: params.chargeIds.get(adjustment)!,
         kind: adjustment.kind,
         code: adjustment.code ?? null,
         label: adjustment.label ?? null,
@@ -278,6 +295,7 @@ function applyResultToDocument(params: {
   documentKind: SalesDocumentKind
   document: SalesDocumentCalculationResult
   result: TaxProviderResultParsed
+  chargeIds: Map<SalesAdjustmentDraft, string>
 }): SalesDocumentCalculationResult {
   const { document, result } = params
   const lineTax = new Map(result.lines.map((line) => [line.lineId, line]))
@@ -295,9 +313,10 @@ function applyResultToDocument(params: {
     }
   })
 
-  const adjustments = document.adjustments.map((adjustment, index) => {
-    if (!isOrderScoped(adjustment)) return adjustment
-    const providerCharge = chargeTax.get(chargeId(adjustment, index))
+  const adjustments = document.adjustments.map((adjustment) => {
+    const id = params.chargeIds.get(adjustment)
+    if (id === undefined) return adjustment
+    const providerCharge = chargeTax.get(id)
     if (!providerCharge) return adjustment
     const amountNet = toNumber(adjustment.amountNet, toNumber(adjustment.amountGross, 0))
     const taxAmount = round(providerCharge.taxAmount)
@@ -400,11 +419,15 @@ export async function runTaxStage(params: {
 
   if (!provider) return null
 
+  // Built once and shared by the request side and the apply side, so the two
+  // can never disagree about which charge is which.
+  const chargeIds = buildChargeIds(params.document.adjustments)
   let request = buildTaxCalculationRequest({
     documentKind,
     tax,
     context,
     document: params.document,
+    chargeIds,
   })
 
   if (eventBus) {
@@ -497,7 +520,7 @@ export async function runTaxStage(params: {
   let document =
     normalized === null
       ? params.document
-      : applyResultToDocument({ documentKind, document: params.document, result: normalized })
+      : applyResultToDocument({ documentKind, document: params.document, result: normalized, chargeIds })
 
   const info = buildTaxInfo({
     providerKey,
