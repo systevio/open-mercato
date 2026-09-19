@@ -1147,6 +1147,8 @@
   "sales.documents.items.updated": "Pozycja zaktualizowana.",
   "sales.documents.items.variant": "Wariant",
   "sales.documents.items.variantSearch": "Szukaj wariantu",
+  "sales.documents.lineDialog.us.priceLabel": "Cena",
+  "sales.documents.lineDialog.us.taxProviderHelper": "Podatek jest obliczany przez wybranego dostawcę podatkowego przy zapisie pozycji.",
   "sales.documents.list.errors.load": "Nie udało się wczytać dokumentów.",
   "sales.documents.list.filters.channel": "Kanał",
   "sales.documents.list.filters.channelPlaceholder": "Szukaj kanałów",

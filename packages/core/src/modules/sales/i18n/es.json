@@ -1147,6 +1147,8 @@
   "sales.documents.items.updated": "Línea actualizada.",
   "sales.documents.items.variant": "Variante",
   "sales.documents.items.variantSearch": "Buscar variante",
+  "sales.documents.lineDialog.us.priceLabel": "Precio",
+  "sales.documents.lineDialog.us.taxProviderHelper": "El impuesto lo calcula el proveedor de impuestos seleccionado cuando se guarda la línea.",
   "sales.documents.list.errors.load": "No se pudieron cargar los documentos.",
   "sales.documents.list.filters.channel": "Canal",
   "sales.documents.list.filters.channelPlaceholder": "Buscar canales",

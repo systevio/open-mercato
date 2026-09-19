@@ -218,6 +218,9 @@ jest.mock('@open-mercato/shared/lib/i18n/context', () => ({
 
 jest.mock('@open-mercato/shared/lib/frontend/useOrganizationScope', () => ({
   useOrganizationScopeDetail: () => organizationScope,
+  // The dialog reads the organization's tax provider selection, and that hook re-reads it when
+  // the active organization changes.
+  useOrganizationScopeVersion: () => 0,
 }))
 
 // Icons carry no behavior; the set covers both the dialog and the real

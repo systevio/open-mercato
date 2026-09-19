@@ -1147,6 +1147,8 @@
   "sales.documents.items.updated": "품목이 업데이트되었습니다.",
   "sales.documents.items.variant": "옵션(변형)",
   "sales.documents.items.variantSearch": "옵션(변형) 검색",
+  "sales.documents.lineDialog.us.priceLabel": "가격",
+  "sales.documents.lineDialog.us.taxProviderHelper": "세금은 품목을 저장할 때 선택한 세금 공급자가 계산합니다.",
   "sales.documents.list.errors.load": "문서를 불러오지 못했습니다.",
   "sales.documents.list.filters.channel": "채널",
   "sales.documents.list.filters.channelPlaceholder": "채널 검색",
