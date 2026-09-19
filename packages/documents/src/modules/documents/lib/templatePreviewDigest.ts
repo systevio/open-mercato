@@ -6,6 +6,12 @@ import {
   documentTitleSchema,
   type DocumentTemplateFillSlotInput,
 } from '../data/validators'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
+
+export type TemplateMoneyPresentation = Pick<
+  DisplayProfile,
+  'languageTag' | 'currencyDisplay' | 'decimalSeparator' | 'thousandsSeparator' | 'negativeStyle'
+>
 
 export type TemplatePreviewDigestInput = {
   templateId: string
@@ -14,6 +20,7 @@ export type TemplatePreviewDigestInput = {
   locale: string
   effectiveDate: string
   slots: DocumentTemplateFillSlotInput[]
+  moneyPresentation?: TemplateMoneyPresentation
 }
 
 export type CanonicalTemplatePreviewValue = string | number | null
@@ -35,6 +42,7 @@ export type CanonicalTemplatePreview = {
   locale: string
   effectiveDate: string
   slots: CanonicalTemplatePreviewSlot[]
+  moneyPresentation?: TemplateMoneyPresentation
 }
 
 function normalizeDate(value: string, errorKey: string): string {
@@ -104,7 +112,7 @@ export function canonicalizeTemplatePreviewInput(
     slotNames.add(slot.slot)
   }
 
-  return {
+  const canonical: CanonicalTemplatePreview = {
     schema: 'documents-template-preview-v1',
     templateId: input.templateId,
     templateUpdatedAt: normalizeDate(input.templateUpdatedAt, 'documents.templates.invalidRevision'),
@@ -113,6 +121,16 @@ export function canonicalizeTemplatePreviewInput(
     effectiveDate: normalizeDate(input.effectiveDate, 'documents.templates.invalidEffectiveDate'),
     slots,
   }
+  if (input.moneyPresentation) {
+    canonical.moneyPresentation = {
+      languageTag: input.moneyPresentation.languageTag,
+      currencyDisplay: input.moneyPresentation.currencyDisplay,
+      decimalSeparator: input.moneyPresentation.decimalSeparator,
+      thousandsSeparator: input.moneyPresentation.thousandsSeparator,
+      negativeStyle: input.moneyPresentation.negativeStyle,
+    }
+  }
+  return canonical
 }
 
 export function computeTemplatePreviewDigest(input: TemplatePreviewDigestInput): string {

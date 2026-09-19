@@ -196,6 +196,15 @@ export async function prepareTemplateRender(
     locale: input.locale,
     effectiveDate: input.effectiveDate,
     slots: verifiedSlots,
+    ...(input.displayProfile ? {
+      moneyPresentation: {
+        languageTag: input.displayProfile.languageTag,
+        currencyDisplay: input.displayProfile.currencyDisplay,
+        decimalSeparator: input.displayProfile.decimalSeparator,
+        thousandsSeparator: input.displayProfile.thousandsSeparator,
+        negativeStyle: input.displayProfile.negativeStyle,
+      },
+    } : {}),
   }
   const canonical = canonicalizeTemplatePreviewInput(digestInput)
   const previewDigest = computeTemplatePreviewDigest(digestInput)

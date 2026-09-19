@@ -198,8 +198,9 @@ export default async function handle(job: QueuedJob<CheckoutEmailJob>, ctx: Hand
       organizationId: payload.organizationId,
       react: PaymentStartEmail({
         firstName,
-        amount: formattedAmount,
+        amount: rawAmount,
         currencyCode,
+        formattedAmount,
         linkTitle,
         bodyHtml,
         copy: {
@@ -227,8 +228,9 @@ export default async function handle(job: QueuedJob<CheckoutEmailJob>, ctx: Hand
       organizationId: payload.organizationId,
       react: PaymentSuccessEmail({
         firstName,
-        amount: formattedAmount,
+        amount: rawAmount,
         currencyCode,
+        formattedAmount,
         linkTitle,
         transactionId: transaction.id,
         bodyHtml,

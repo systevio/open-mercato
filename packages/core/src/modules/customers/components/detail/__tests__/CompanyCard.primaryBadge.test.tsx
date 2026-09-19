@@ -4,6 +4,8 @@
 import * as React from 'react'
 import { renderWithProviders } from '@open-mercato/shared/lib/testing/renderWithProviders'
 import { CompanyCard, type EnrichedCompanyData } from '../CompanyCard'
+import { MarketProfileProvider } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
+import { getMarketTemplate } from '@open-mercato/shared/lib/display/templates'
 
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -54,5 +56,37 @@ describe('CompanyCard primary badge', () => {
       <CompanyCard data={makeCompanyData({ isPrimary: false })} personName="Lena Ortiz" />,
     )
     expect(container.querySelector('.bg-status-info-bg')).toBeNull()
+  })
+
+  it('formats active-deal money with the profile while preserving its stored currency', () => {
+    const usProfile = getMarketTemplate('US')
+    if (!usProfile) throw new Error('[internal] US market template is unavailable')
+    const { getByText } = renderWithProviders(
+      <MarketProfileProvider profile={usProfile}>
+        <CompanyCard
+          data={makeCompanyData({
+            activeDeal: { title: 'Expansion', valueAmount: '1234.5', valueCurrency: 'PLN' },
+          })}
+          personName="Lena Ortiz"
+        />
+      </MarketProfileProvider>,
+      { locale: 'en-US' },
+    )
+
+    expect(getByText(/Expansion/)).toHaveTextContent('PLN 1,234.50')
+  })
+
+  it('shows an explicit unknown denomination for active-deal amounts without currency', () => {
+    const { getByText } = renderWithProviders(
+      <CompanyCard
+        data={makeCompanyData({
+          activeDeal: { title: 'Unclassified', valueAmount: '1250', valueCurrency: null },
+        })}
+        personName="Lena Ortiz"
+      />,
+      { locale: 'en-US' },
+    )
+
+    expect(getByText(/Unclassified/)).toHaveTextContent('Currency unavailable')
   })
 })

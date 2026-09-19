@@ -395,6 +395,13 @@ function formatDealValue(
   return code ? formatted : `${formatted} · ${currencyUnavailableLabel}`
 }
 
+function formatRawDealValue(record: Record<string, unknown>): string | undefined {
+  const amount = record.value_amount ?? record.valueAmount
+  if (!amount) return undefined
+  const currency = record.value_currency ?? record.valueCurrency
+  return currency ? `${String(amount)} ${String(currency)}` : String(amount)
+}
+
 function isResolverContainer(value: unknown): value is { resolve<T>(name: string): T } {
   return typeof value === 'object' && value !== null && 'resolve' in value &&
     typeof (value as { resolve?: unknown }).resolve === 'function'
@@ -931,12 +938,7 @@ export const searchConfig: SearchModuleConfig = {
         appendLine(lines, 'Stage', record.pipeline_stage)
         appendLine(lines, 'Status', record.status)
         appendLine(lines, 'Source', record.source)
-        const displayProfile = await resolveSearchDisplayProfile(ctx)
-        const value = formatDealValue(
-          record,
-          displayProfile,
-          t('customers.companies.dashboard.kpi.currencyUnavailable', 'Currency unavailable'),
-        )
+        const value = formatRawDealValue(record)
         if (value) appendLine(lines, 'Value', value)
         if (!lines.length) return null
 

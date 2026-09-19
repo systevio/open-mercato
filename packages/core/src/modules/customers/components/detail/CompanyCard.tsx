@@ -260,10 +260,12 @@ export function CompanyCard({
     data.billing?.paymentTerms ||
     data.billing?.preferredCurrency
 
-  const dealValue =
-    data.activeDeal?.valueAmount && data.activeDeal?.valueCurrency
-      ? `${data.activeDeal.valueAmount} ${data.activeDeal.valueCurrency}`
-      : null
+  const dealValue = data.activeDeal?.valueAmount
+    ? data.activeDeal.valueCurrency
+      ? formatMoney(data.activeDeal.valueAmount, data.activeDeal.valueCurrency, displayProfile)
+        ?? `${data.activeDeal.valueAmount} ${data.activeDeal.valueCurrency}`
+      : `${formatNumber(data.activeDeal.valueAmount, displayProfile) ?? data.activeDeal.valueAmount} · ${currencyUnavailableLabel}`
+    : null
 
   return (
     <div className="min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-card">

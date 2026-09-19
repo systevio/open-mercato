@@ -146,8 +146,9 @@ describe('checkout send-email worker', () => {
       }),
     )
     expect(sendEmail.mock.calls[0]?.[0]?.react).toEqual(expect.objectContaining({
-      amount: '$33.00',
+      amount: '33.00',
       currencyCode: 'USD',
+      formattedAmount: '$33.00',
     }))
   })
 })
