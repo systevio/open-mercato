@@ -97,6 +97,10 @@ const events = [
   // Lifecycle events - Payment adjustments
   { id: 'sales.payment.adjustments.apply.before', label: 'Before Payment Adjustments', category: 'lifecycle', excludeFromTriggers: true },
   { id: 'sales.payment.adjustments.apply.after', label: 'After Payment Adjustments', category: 'lifecycle', excludeFromTriggers: true },
+
+  // Lifecycle events - Tax provider stage
+  { id: 'sales.tax.adjustments.apply.before', label: 'Before Tax Provider Stage', category: 'lifecycle', excludeFromTriggers: true },
+  { id: 'sales.tax.adjustments.apply.after', label: 'After Tax Provider Stage', category: 'lifecycle', excludeFromTriggers: true },
 ] as const
 
 export const eventsConfig = createModuleEvents({

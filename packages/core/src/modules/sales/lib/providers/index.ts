@@ -39,6 +39,7 @@ export {
   registerDefaultTaxProviders,
   tableRatesTaxProvider,
 } from './taxProviders'
+export { buildTaxCalculationRequest, runTaxStage } from './taxStage'
 
 export type {
   PaymentProvider,
