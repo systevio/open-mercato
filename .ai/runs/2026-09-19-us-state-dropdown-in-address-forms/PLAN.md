@@ -16,7 +16,7 @@
 | 1 | 1.2 | Country-aware resolveAddressLayout and name-tolerant validateAddressForProfile | inline | done | 985bd94ef |
 | 1 | 1.3 | Wire the packages/ui AddressEditor with RTL coverage | inline | done | 90e0411ea |
 | 1 | 1.4 | Wire the customers AddressEditor with RTL coverage | inline | done | c07dfc98d |
-| 2 | 2.1 | Replace the channel region field with ChannelRegionField and RTL coverage | inline | todo | — |
+| 2 | 2.1 | Replace the channel region field with ChannelRegionField and RTL coverage | inline | done | PENDING |
 | 2 | 2.2 | Special-case the ship-from region in TaxProviderSettings with test coverage | inline | todo | — |
 | 2 | 2.3 | Integration test TC-MKT-004 - customer address US state dropdown | inline | todo | — |
 | 2 | 2.4 | Integration test TC-MKT-005 - sales channel US state | inline | todo | — |
@@ -59,8 +59,10 @@ country and a region field.
 
 - R3 from the spec: the channel form's `custom` field could render its label or error differently from the `select` it
   replaces. Covered by the RTL test in Step 2.1, which asserts the label, the error text and `aria-invalid`.
-- `channelFormFields.ts` is a `.ts` file, so `ChannelRegionField` is constructed with `React.createElement` rather than
-  JSX. Renaming the file to `.tsx` would change a documented import path for no functional gain.
+- `channelFormFields.ts` was renamed to `.tsx` because `ChannelRegionField` renders JSX. The import path
+  (`@open-mercato/core/modules/sales/components/channels/channelFormFields`) is unchanged: the package's wildcard
+  `exports` map resolves a subpath to either `./src/*.ts` or `./src/*.tsx` and both build to the same `dist/*.js`, and
+  the customers form config this field follows (`formConfig.tsx`) is already `.tsx`.
 
 ## External references
 
