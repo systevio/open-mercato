@@ -454,6 +454,7 @@
   "warranty_claims.kpi.recovered": "회수됨",
   "warranty_claims.kpi.recovered.description": "공급업체로부터",
   "warranty_claims.kpi.recovered.moreCurrencies": "최근 30일 — 통화 {count}개 중 최대",
+  "warranty_claims.kpi.recovered.unknownCurrency": "알 수 없는 통화",
   "warranty_claims.kpi.slaCompliance": "SLA 준수율",
   "warranty_claims.kpi.slaCompliance.description": "목표 기간 내",
   "warranty_claims.kpi.slaCompliance.overdue": "기한 초과 {count}건",

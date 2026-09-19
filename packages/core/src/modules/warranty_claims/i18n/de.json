@@ -454,6 +454,7 @@
   "warranty_claims.kpi.recovered": "Zurückgewonnen",
   "warranty_claims.kpi.recovered.description": "Von Lieferanten",
   "warranty_claims.kpi.recovered.moreCurrencies": "Letzte 30 Tage — größte von {count} Währungen",
+  "warranty_claims.kpi.recovered.unknownCurrency": "Währung unbekannt",
   "warranty_claims.kpi.slaCompliance": "SLA-Erfüllung",
   "warranty_claims.kpi.slaCompliance.description": "Im Zielfenster",
   "warranty_claims.kpi.slaCompliance.overdue": "{count} überfällig",

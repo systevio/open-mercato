@@ -454,6 +454,7 @@
   "warranty_claims.kpi.recovered": "Recuperado",
   "warranty_claims.kpi.recovered.description": "De proveedores",
   "warranty_claims.kpi.recovered.moreCurrencies": "Últimos 30 días — la mayor de {count} monedas",
+  "warranty_claims.kpi.recovered.unknownCurrency": "moneda desconocida",
   "warranty_claims.kpi.slaCompliance": "Cumplimiento del SLA",
   "warranty_claims.kpi.slaCompliance.description": "Dentro del plazo objetivo",
   "warranty_claims.kpi.slaCompliance.overdue": "{count} vencidos",
