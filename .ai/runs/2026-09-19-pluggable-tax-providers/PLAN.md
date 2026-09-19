@@ -22,7 +22,7 @@
 | 1 | 1.6 | Tax stage in the provider totals calculator | inline | done | — |
 | 1 | 1.7 | Wire the tax context into every recalculation site | inline | done | — |
 | 1 | 1.8 | Tax events and totals payload | inline | done | — |
-| 2 | 2.1 | Tax columns on the four document tables | inline | todo | — |
+| 2 | 2.1 | Tax columns on the four document tables | inline | done | — |
 | 2 | 2.2 | Persist the tax result on quotes and orders | inline | todo | — |
 | 2 | 2.3 | Tax columns through command snapshots and undo | inline | todo | — |
 | 2 | 2.4 | Invoice and credit memo inheritance | inline | todo | — |

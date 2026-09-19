@@ -330,6 +330,14 @@ export class SalesTaxRate {
 @Index({ name: 'sales_orders_fulfillment_status_idx', properties: ['organizationId', 'tenantId', 'fulfillmentStatus'] })
 @Index({ name: 'sales_orders_payment_status_idx', properties: ['organizationId', 'tenantId', 'paymentStatus'] })
 @Unique({ name: 'sales_orders_number_unique', properties: ['organizationId', 'tenantId', 'orderNumber'] })
+// Resolves a document from a tax provider's transaction reference. Partial
+// because the built in table-rates provider records no transaction, so on an
+// instance that never selects an external engine the index stays empty.
+@Index({
+  name: 'sales_orders_tax_transaction_ref_idx',
+  expression:
+    `create index "sales_orders_tax_transaction_ref_idx" on "sales_orders" ("organization_id", "tenant_id", "tax_transaction_ref") where "tax_transaction_ref" is not null`,
+})
 export class SalesOrder {
   @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
   id!: string
@@ -402,6 +410,15 @@ export class SalesOrder {
 
   @Property({ name: 'tax_info', type: 'jsonb', nullable: true })
   taxInfo?: Record<string, unknown> | null
+
+  @Property({ name: 'tax_status', type: 'text', nullable: true })
+  taxStatus?: string | null
+
+  @Property({ name: 'tax_calculated_at', type: Date, nullable: true })
+  taxCalculatedAt?: Date | null
+
+  @Property({ name: 'tax_transaction_ref', type: 'text', nullable: true })
+  taxTransactionRef?: string | null
 
   @Property({ name: 'shipping_method_snapshot', type: 'jsonb', nullable: true })
   shippingMethodSnapshot?: Record<string, unknown> | null
@@ -824,6 +841,14 @@ export class SalesDocumentSequence {
 @Index({ name: 'sales_quotes_status_idx', properties: ['organizationId', 'tenantId', 'status'] })
 @Unique({ name: 'sales_quotes_number_unique', properties: ['organizationId', 'tenantId', 'quoteNumber'] })
 @Unique({ name: 'sales_quotes_acceptance_token_unique', properties: ['acceptanceToken'] })
+// Resolves a document from a tax provider's transaction reference. Partial
+// because the built in table-rates provider records no transaction, so on an
+// instance that never selects an external engine the index stays empty.
+@Index({
+  name: 'sales_quotes_tax_transaction_ref_idx',
+  expression:
+    `create index "sales_quotes_tax_transaction_ref_idx" on "sales_quotes" ("organization_id", "tenant_id", "tax_transaction_ref") where "tax_transaction_ref" is not null`,
+})
 export class SalesQuote {
   @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
   id!: string
@@ -885,8 +910,20 @@ export class SalesQuote {
   @Property({ name: 'comments', type: 'text', nullable: true })
   comments?: string | null
 
+  @Property({ name: 'tax_strategy_key', type: 'text', nullable: true })
+  taxStrategyKey?: string | null
+
   @Property({ name: 'tax_info', type: 'jsonb', nullable: true })
   taxInfo?: Record<string, unknown> | null
+
+  @Property({ name: 'tax_status', type: 'text', nullable: true })
+  taxStatus?: string | null
+
+  @Property({ name: 'tax_calculated_at', type: Date, nullable: true })
+  taxCalculatedAt?: Date | null
+
+  @Property({ name: 'tax_transaction_ref', type: 'text', nullable: true })
+  taxTransactionRef?: string | null
 
   @Property({ name: 'shipping_method_id', type: 'uuid', nullable: true })
   shippingMethodId?: string | null
@@ -1380,6 +1417,14 @@ export class SalesReturnLine {
 @Index({ name: 'sales_invoices_scope_idx', properties: ['order', 'organizationId', 'tenantId'] })
 @Index({ name: 'sales_invoices_status_idx', properties: ['organizationId', 'tenantId', 'status'] })
 @Unique({ name: 'sales_invoices_number_unique', properties: ['organizationId', 'tenantId', 'invoiceNumber'] })
+// Resolves a document from a tax provider's transaction reference. Partial
+// because the built in table-rates provider records no transaction, so on an
+// instance that never selects an external engine the index stays empty.
+@Index({
+  name: 'sales_invoices_tax_transaction_ref_idx',
+  expression:
+    `create index "sales_invoices_tax_transaction_ref_idx" on "sales_invoices" ("organization_id", "tenant_id", "tax_transaction_ref") where "tax_transaction_ref" is not null`,
+})
 export class SalesInvoice {
   @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
   id!: string
@@ -1422,6 +1467,22 @@ export class SalesInvoice {
 
   @Property({ name: 'tax_total_amount', type: 'numeric', precision: 18, scale: 4, default: '0' })
   taxTotalAmount: string = '0'
+
+  @Property({ name: 'tax_strategy_key', type: 'text', nullable: true })
+  taxStrategyKey?: string | null
+
+  @Property({ name: 'tax_info', type: 'jsonb', nullable: true })
+  taxInfo?: Record<string, unknown> | null
+
+  @Property({ name: 'tax_status', type: 'text', nullable: true })
+  taxStatus?: string | null
+
+  @Property({ name: 'tax_calculated_at', type: Date, nullable: true })
+  taxCalculatedAt?: Date | null
+
+  @Property({ name: 'tax_transaction_ref', type: 'text', nullable: true })
+  taxTransactionRef?: string | null
+
 
   @Property({ name: 'grand_total_net_amount', type: 'numeric', precision: 18, scale: 4, default: '0' })
   grandTotalNetAmount: string = '0'
@@ -1547,6 +1608,14 @@ export class SalesInvoiceLine {
   name: 'sales_credit_memos_number_unique',
   properties: ['organizationId', 'tenantId', 'creditMemoNumber'],
 })
+// Resolves a document from a tax provider's transaction reference. Partial
+// because the built in table-rates provider records no transaction, so on an
+// instance that never selects an external engine the index stays empty.
+@Index({
+  name: 'sales_credit_memos_tax_transaction_ref_idx',
+  expression:
+    `create index "sales_credit_memos_tax_transaction_ref_idx" on "sales_credit_memos" ("organization_id", "tenant_id", "tax_transaction_ref") where "tax_transaction_ref" is not null`,
+})
 export class SalesCreditMemo {
   @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
   id!: string
@@ -1589,6 +1658,22 @@ export class SalesCreditMemo {
 
   @Property({ name: 'tax_total_amount', type: 'numeric', precision: 18, scale: 4, default: '0' })
   taxTotalAmount: string = '0'
+
+  @Property({ name: 'tax_strategy_key', type: 'text', nullable: true })
+  taxStrategyKey?: string | null
+
+  @Property({ name: 'tax_info', type: 'jsonb', nullable: true })
+  taxInfo?: Record<string, unknown> | null
+
+  @Property({ name: 'tax_status', type: 'text', nullable: true })
+  taxStatus?: string | null
+
+  @Property({ name: 'tax_calculated_at', type: Date, nullable: true })
+  taxCalculatedAt?: Date | null
+
+  @Property({ name: 'tax_transaction_ref', type: 'text', nullable: true })
+  taxTransactionRef?: string | null
+
 
   @Property({ name: 'grand_total_net_amount', type: 'numeric', precision: 18, scale: 4, default: '0' })
   grandTotalNetAmount: string = '0'
