@@ -793,6 +793,22 @@ export class SalesSettings {
   @Property({ name: 'order_address_editable_statuses', type: 'jsonb', nullable: true })
   orderAddressEditableStatuses?: string[] | null
 
+  /** NULL means the built in `table-rates` provider. */
+  @Property({ name: 'tax_provider_key', type: 'text', nullable: true })
+  taxProviderKey?: string | null
+
+  /** Validated by the selected provider's own settings schema; never secrets. */
+  @Property({ name: 'tax_provider_settings', type: 'jsonb', nullable: true })
+  taxProviderSettings?: Record<string, unknown> | null
+
+  /** NULL means the instance default from OM_SALES_TAX_PROVIDER_TIMEOUT_MS. */
+  @Property({ name: 'tax_provider_timeout_ms', type: 'integer', nullable: true })
+  taxProviderTimeoutMs?: number | null
+
+  /** An AddressValue-shaped record; encrypted at rest because it is an address. */
+  @Property({ name: 'ship_from_address', type: 'jsonb', nullable: true })
+  shipFromAddress?: Record<string, unknown> | null
+
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()
 
