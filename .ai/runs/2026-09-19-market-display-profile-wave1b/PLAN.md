@@ -16,8 +16,8 @@
 | 2 | 2.2a | Address layer: the `packages/ui` detail twins render from the descriptor | inline | done | 0e94e1179 |
 | 2 | 2.2b | Address layer: the `customers` twins render from the descriptor | inline | done | abfb0ff75 |
 | 2 | 2.3 | Customers surfaces: people, companies, deals, detail cards, phone in `formConfig` | inline | done | 1e4504508 |
-| 2 | 2.4 | CRM calendar: `range.ts`, `MonthGrid`, `AgendaList`, conflicts route | inline | done | — |
-| 2 | 2.6a | Sales documents: money and dates through the helpers | inline | todo | — |
+| 2 | 2.4 | CRM calendar: `range.ts`, `MonthGrid`, `AgendaList`, conflicts route | inline | done | 45ec3c8f6 |
+| 2 | 2.6a | Sales documents: money and dates through the helpers | inline | done | — |
 | 2 | 2.6b | Sales documents: the price presentation switch and the tax line | inline | todo | — |
 | 2 | 2.7 | Public quote page and quote emails via a server-built preformatted view model | inline | todo | — |
 | 2 | 2.8 | Catalog product forms: single price field, unit placeholders, `tax_code` and `is_taxable` | inline | todo | — |

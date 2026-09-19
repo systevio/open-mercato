@@ -25,6 +25,9 @@ import { Spinner } from '@open-mercato/ui/primitives/spinner'
 import { Input } from '@open-mercato/ui/primitives/input'
 import { EmailInput } from '@open-mercato/ui/primitives/email-input'
 import { formatDisplayDate, formatDisplayDateTime, toDateInputValue, toUtcDateInputValue } from '@open-mercato/ui/primitives/date-format'
+import { formatMoney as formatMarketMoney } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@open-mercato/ui/primitives/dialog'
 import { ArrowRightLeft, Building2, CreditCard, Mail, Pencil, Plus, Send, Store, Truck, UserRound, Wand2, X } from 'lucide-react'
 import { FormHeader, type ActionItem } from '@open-mercato/ui/backend/forms'
@@ -87,9 +90,11 @@ const logger = createLogger('sales')
 function formatMessageAmount(
   amount: number | null | undefined,
   currency: string | null | undefined,
-  locale?: string
+  locale?: string,
+  profile?: DisplayProfile | null,
 ): string | null {
   if (typeof amount !== 'number' || !Number.isFinite(amount)) return null
+  if (profile) return formatMarketMoney(amount, currency, profile, { locale })
   if (!currency) return amount.toLocaleString(locale)
   try {
     return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount)
@@ -1915,6 +1920,7 @@ export default function SalesDocumentDetailPage({
 }) {
   const t = useT()
   const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const { enabled: channelsEnabled } = useSalesChannelsEnabled()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -2858,7 +2864,12 @@ export default function SalesDocumentDetailPage({
       : null
   const contactEmail = resolveCustomerEmail(customerSnapshot) ?? metadataEmail ?? record?.contactEmail ?? null
   const statusDisplay = record?.status ? statusDictionaryMap[record.status] ?? null : null
-  const previewAmount = formatMessageAmount(record?.grandTotalGrossAmount ?? null, record?.currencyCode ?? null, locale)
+  const previewAmount = formatMessageAmount(
+    record?.grandTotalGrossAmount ?? null,
+    record?.currencyCode ?? null,
+    locale,
+    displayProfile,
+  )
   const messagePreviewMetadata: Record<string, string> = {}
   if (includeAmountInMessageMetadata && previewAmount) {
     messagePreviewMetadata[t('sales.documents.detail.totals.grandTotalGross')] = previewAmount
@@ -3918,7 +3929,7 @@ export default function SalesDocumentDetailPage({
         renderDisplay: (params) => {
           const { value, emptyLabel } = params
           return (
-            <span className="text-sm text-muted-foreground">{formatDisplayDate(value, locale) ?? emptyLabel}</span>
+            <span className="text-sm text-muted-foreground">{formatDisplayDate(value, locale, displayProfile) ?? emptyLabel}</span>
           )
         },
       })
@@ -3960,10 +3971,10 @@ export default function SalesDocumentDetailPage({
         render: () => (
           <SectionCard title={t('sales.documents.detail.timestamps', 'Timestamps')} muted>
             <p className="text-sm text-muted-foreground">
-              {t('sales.documents.detail.created', 'Created')}: {formatDisplayDateTime(record?.createdAt, locale) ?? '—'}
+              {t('sales.documents.detail.created', 'Created')}: {formatDisplayDateTime(record?.createdAt, locale, displayProfile) ?? '—'}
             </p>
             <p className="text-sm text-muted-foreground">
-              {t('sales.documents.detail.updated', 'Updated')}: {formatDisplayDateTime(record?.updatedAt, locale) ?? '—'}
+              {t('sales.documents.detail.updated', 'Updated')}: {formatDisplayDateTime(record?.updatedAt, locale, displayProfile) ?? '—'}
             </p>
           </SectionCard>
         ),
@@ -4765,7 +4776,7 @@ export default function SalesDocumentDetailPage({
             saveLabel={t('customers.people.detail.inline.saveShortcut')}
             renderDisplay={({ value, emptyLabel }) => (
               <span className="text-sm text-muted-foreground">
-                {formatDisplayDate(value, locale) ?? emptyLabel}
+                {formatDisplayDate(value, locale, displayProfile) ?? emptyLabel}
               </span>
             )}
           />
