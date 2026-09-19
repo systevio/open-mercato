@@ -21,3 +21,12 @@
 - **Delta from the spec's `TaxRequestLine` / `TaxRequestCharge` tables:** two additive fields on each — `amountGross` and `taxAmount` (plus `amountGross` on the charge). The spec's own field list could not support its own central guarantee: `table-rates` is required to be "an identity over the engine's line math", but from `amountNet` and `taxRate` alone it cannot reproduce a line that carried an explicit `taxAmount` (`lib/calculations.ts:164-167`) or one whose tax came from the gross/net delta heuristic (`:177-180`). Passing the engine's own per line figure makes the identity exact instead of approximate, and it is information a real engine wants anyway (Saleor's `TaxableObject` and commercetools' external rates both carry the current tax).
 - Second, smaller delta: `table-rates` emits no jurisdiction detail row for a zero-tax line. A table rate carries no jurisdiction identity, so such a row would say nothing; the spec's TC-SALES-TAX-001 assertion (one breakdown entry per line) still holds for lines that actually carry a rate.
 - Both deltas are additive to types that have not shipped; nothing outside this branch depends on them. They are called out in the PR body.
+
+## 2026-09-19T11:05:00Z — checkpoint 1, phase 1 closed
+- Steps 1.3 to 1.8 landed, one commit each. `checkpoint-1-checks.md` records the targeted gate.
+- Green: `yarn build:packages`, `yarn generate` (no drift), `yarn i18n:check-sync`, `yarn i18n:check-usage` (advisory), `yarn typecheck`, and 116 sales suites / 897 tests.
+- Pre-existing failures found and attributed, not caused here: 5 tests in `@open-mercato/cli` (`resolve-environment.test.ts`, `resolver.enterprise.test.ts`). Reproduced on `origin/develop` in this same worktree; this branch touches no file under `packages/cli`.
+- Decision: the catalog product-facts read is lazy, off by default for `table-rates`. Without it every one of the eighteen recalculation sites would pay a catalog query per write, and two of the four return sites run inside an open transaction. The built in default consumes no product fact, so the common path adds no query at all.
+- UI verification skipped this checkpoint: phase 1 changes no `.tsx`, no component, no route. First UI surface is Step 2.7.
+- Integration tests not run this checkpoint: the first acceptance spec lands in Step 2.8.
+- Runner recorded: local (`yarn X`); no compose `app` container is running.
