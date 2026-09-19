@@ -10,6 +10,7 @@ import { isDocumentEntityRegistryModuleEnabled } from './entityRegistryAvailabil
 import { verifyEntityRegistrySelections } from './entityRegistry.server'
 import { materializeDocumentHtml, type MaterializedDocumentHtml } from './collabMaterializer'
 import { renderTemplateTokens, type TemplateRenderResult } from './templateFill'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
 import {
   canonicalizeTemplatePreviewInput,
   computeTemplatePreviewDigest,
@@ -27,6 +28,7 @@ export type PrepareTemplateRenderInput = {
   userFeatures: readonly string[]
   expectedDigest?: string | null
   rejectUnresolved?: boolean
+  displayProfile?: DisplayProfile | null
 }
 
 export type PreparedTemplateRender = {
@@ -68,6 +70,34 @@ export function clearOmittedOptionalSlotTokens(
     /{{\s*([a-z][a-zA-Z0-9]*)\.[^{}]+?\s*}}/g,
     (token, slot: string) => omittedOptional.has(slot) ? '' : token,
   )
+}
+
+const LEGACY_BUILT_IN_MONEY_MARKUP: Record<string, readonly [string, string]> = {
+  'deal-summary': [
+    '<tr><td>Value</td><td>{{deal.value}} {{deal.valueCurrency}}</td></tr>',
+    '<tr><td>Value</td><td>{{deal.formattedValue}}</td></tr>',
+  ],
+  'deal-proposal': [
+    '<p>Value: {{deal.value}} {{deal.valueCurrency}}</p>',
+    '<p>Value: {{deal.formattedValue}}</p>',
+  ],
+  'quote-cover-letter': [
+    '<p>Total: {{quote.total}} {{quote.currency}}</p>',
+    '<p>Total: {{quote.formattedTotal}}</p>',
+  ],
+  'order-handoff': [
+    '<p>Total: {{order.total}} {{order.currency}}</p>',
+    '<p>Total: {{order.formattedTotal}}</p>',
+  ],
+}
+
+export function materializeBuiltInMoneyTokens(
+  seedKey: string | null | undefined,
+  bodyHtml: string,
+): string {
+  const replacement = seedKey ? LEGACY_BUILT_IN_MONEY_MARKUP[seedKey] : undefined
+  if (!replacement) return bodyHtml
+  return bodyHtml.replace(replacement[0], replacement[1])
 }
 
 function validateTemplateRevision(template: DocumentTemplate, submitted: string): void {
@@ -175,7 +205,7 @@ export async function prepareTemplateRender(
 
   const tokenRender = renderTemplateTokens(
     clearOmittedOptionalSlotTokens(
-      input.template.bodyHtml,
+      materializeBuiltInMoneyTokens(input.template.seedKey, input.template.bodyHtml),
       input.template.contextSlots,
       canonical.slots,
     ),
@@ -187,7 +217,11 @@ export async function prepareTemplateRender(
       href: slot.href,
       values: slot.values,
     })),
-    { locale: canonical.locale, now: new Date(canonical.effectiveDate) },
+    {
+      locale: canonical.locale,
+      now: new Date(canonical.effectiveDate),
+      displayProfile: input.displayProfile,
+    },
   )
   if (input.rejectUnresolved && tokenRender.unresolvedTokens.length > 0) {
     throw new CrudHttpError(400, {

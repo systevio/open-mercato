@@ -19,6 +19,7 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { translateWithFallback } from '@open-mercato/shared/lib/i18n/translate'
 import { registerComponent } from '@open-mercato/shared/modules/widgets/component-registry'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 
 // Deal status values written by the kanban flow. These intentionally do NOT include 'closed'
 // because the rest of the app only persists 'lost' for lost deals (see StatusFilterPopover
@@ -116,6 +117,7 @@ export function QuickDealDialog({
   defaultProbability = DEFAULT_QUICK_DEAL_PROBABILITY,
 }: QuickDealDialogProps): React.ReactElement | null {
   const t = useT()
+  const displayProfile = useDisplayProfile()
   // Re-mount CrudForm whenever the dialog opens so cleared state is consistently fresh.
   // We also key on `context?.pipelineStageId` so reopening from a different stage doesn't
   // reuse stale field values (the page passes a fresh stage in `context` each time).
@@ -139,17 +141,21 @@ export function QuickDealDialog({
     'Title is required.',
   )
 
-  // Default currency selection: tenant base currency, else first available, else 'USD' as
-  // a last-resort literal that satisfies the form validator (which now accepts any 3-char
-  // code rather than a hardcoded enum).
+  // Only pristine creates receive a market default. Existing/user-entered values never pass
+  // through this initialization path, and the profile code must exist in the active dictionary.
   const resolvedCurrencies = React.useMemo(
     () => (currencies && currencies.length > 0 ? currencies : FALLBACK_CURRENCIES),
     [currencies],
   )
   const defaultCurrencyCode = React.useMemo(() => {
+    const profileCode = displayProfile?.currencyCode?.trim().toUpperCase()
+    const profileCurrency = resolvedCurrencies.find(
+      (currency) => currency.code.toUpperCase() === profileCode,
+    )
+    if (profileCurrency) return profileCurrency.code
     const base = resolvedCurrencies.find((currency) => currency.isBase)
     return base?.code ?? resolvedCurrencies[0]?.code ?? 'USD'
-  }, [resolvedCurrencies])
+  }, [displayProfile?.currencyCode, resolvedCurrencies])
 
   const formSchema = React.useMemo(
     () =>

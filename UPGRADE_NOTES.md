@@ -24,6 +24,18 @@ most of the patterns listed below in a user's codebase.
 
 ## 0.7.0 → 0.7.1 (unreleased)
 
+### Customer company KPI money totals are grouped by currency
+
+`GET /api/customers/companies/:id` now returns additive `kpis.activeDealsByCurrency` and
+`kpis.wonDealsByCurrency` arrays. Each item carries `currencyCode`, `amount`, `count`, and
+`invalidAmountCount`; missing or invalid denominations use `currencyCode: null`. Consumers should
+render these groups independently and must not add unlike denominations.
+
+The older `activeDealsValue`, `dealCurrency`, and `ltvValue` fields remain available for compatibility,
+but are deprecated because a scalar cannot represent mixed currencies safely. They are populated only
+when one known denomination has at least one valid amount; mixed or unknown-only totals return `null`.
+No stored amount or currency is converted or rewritten.
+
 ### Sales tax providers: `taxStrategyKey` and `taxInfo` on orders and quotes are now core-owned
 
 Tax calculation is now a **provider slot** selected per organization. **No action is required for

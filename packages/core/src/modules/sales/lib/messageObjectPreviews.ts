@@ -3,6 +3,8 @@ import { findOneWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import { resolveTranslations } from '@open-mercato/shared/lib/i18n/server'
 import type { ObjectPreviewData } from '@open-mercato/shared/modules/messages/types'
 import type { EntityManager } from '@mikro-orm/postgresql'
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
 import { SalesChannel, SalesOrder, SalesQuote } from '../data/entities'
 
 type PreviewContext = {
@@ -11,6 +13,21 @@ type PreviewContext = {
 }
 
 type DocumentKind = 'order' | 'quote'
+
+async function resolvePreviewDisplayProfile(
+  resolve: <T>(name: string) => T,
+  ctx: PreviewContext,
+): Promise<DisplayProfile | null> {
+  if (!ctx.organizationId) return null
+  try {
+    const resolver = resolve<{
+      resolve(scope: { tenantId: string; organizationId: string }): Promise<DisplayProfile | null>
+    }>('displayProfileResolver')
+    return await resolver.resolve({ tenantId: ctx.tenantId, organizationId: ctx.organizationId })
+  } catch {
+    return null
+  }
+}
 
 type SalesDocumentPreviewRecord = {
   id: string
@@ -37,16 +54,15 @@ function resolveCustomerName(snapshot: Record<string, unknown> | null): string |
   return parts.length > 0 ? parts.join(' ') : null
 }
 
-function formatTotal(amount: string | null | undefined, currency: string | null | undefined): string | null {
+export function formatTotal(
+  amount: string | null | undefined,
+  currency: string | null | undefined,
+  profile?: DisplayProfile | null,
+): string | null {
   if (!amount) return null
   const value = Number(amount)
   if (!Number.isFinite(value)) return currency ? `${amount} ${currency}` : amount
-  if (!currency) return value.toLocaleString()
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(value)
-  } catch {
-    return `${value.toLocaleString()} ${currency}`
-  }
+  return currency ? formatMoney(value, currency, profile) : formatNumber(value, profile)
 }
 
 function statusColor(status: string | null | undefined): string | undefined {
@@ -64,7 +80,12 @@ function statusColor(status: string | null | undefined): string | undefined {
   return 'blue'
 }
 
-async function buildPreview(kind: DocumentKind, entityId: string, record: SalesDocumentPreviewRecord | null): Promise<ObjectPreviewData> {
+async function buildPreview(
+  kind: DocumentKind,
+  entityId: string,
+  record: SalesDocumentPreviewRecord | null,
+  profile?: DisplayProfile | null,
+): Promise<ObjectPreviewData> {
   const { t } = await resolveTranslations()
   const defaultTitle = kind === 'quote' ? t('sales.messageObjects.quote.title') : t('sales.messageObjects.order.title')
   if (!record) {
@@ -78,7 +99,7 @@ async function buildPreview(kind: DocumentKind, entityId: string, record: SalesD
 
   const number = kind === 'quote' ? record.quoteNumber : record.orderNumber
   const customerName = resolveCustomerName(record.customerSnapshot ?? null)
-  const total = formatTotal(record.grandTotalGrossAmount, record.currencyCode)
+  const total = formatTotal(record.grandTotalGrossAmount, record.currencyCode, profile)
 
   const subtitleParts = [customerName, total].filter((part): part is string => Boolean(part && part.trim().length > 0))
   const subtitle = subtitleParts.length > 0 ? subtitleParts.join(' • ') : entityId
@@ -104,15 +125,16 @@ async function loadDocumentRecord(
   kind: DocumentKind,
   entityId: string,
   ctx: PreviewContext,
-): Promise<SalesDocumentPreviewRecord | null> {
-  if (!ctx.organizationId) return null
+): Promise<{ record: SalesDocumentPreviewRecord | null; profile: DisplayProfile | null }> {
+  if (!ctx.organizationId) return { record: null, profile: null }
 
   const { resolve } = await createRequestContainer()
   const em = resolve('em') as EntityManager
   const scope = { tenantId: ctx.tenantId, organizationId: ctx.organizationId }
+  const profile = await resolvePreviewDisplayProfile(resolve, ctx)
 
   if (kind === 'quote') {
-    return await findOneWithDecryption(
+    const record = await findOneWithDecryption(
       em,
       SalesQuote,
       {
@@ -124,9 +146,10 @@ async function loadDocumentRecord(
       undefined,
       scope,
     )
+    return { record, profile }
   }
 
-  return await findOneWithDecryption(
+  const record = await findOneWithDecryption(
     em,
     SalesOrder,
     {
@@ -138,16 +161,17 @@ async function loadDocumentRecord(
     undefined,
     scope,
   )
+  return { record, profile }
 }
 
 export async function loadSalesQuotePreview(entityId: string, ctx: PreviewContext): Promise<ObjectPreviewData> {
-  const record = await loadDocumentRecord('quote', entityId, ctx)
-  return await buildPreview('quote', entityId, record)
+  const { record, profile } = await loadDocumentRecord('quote', entityId, ctx)
+  return await buildPreview('quote', entityId, record, profile)
 }
 
 export async function loadSalesOrderPreview(entityId: string, ctx: PreviewContext): Promise<ObjectPreviewData> {
-  const record = await loadDocumentRecord('order', entityId, ctx)
-  return await buildPreview('order', entityId, record)
+  const { record, profile } = await loadDocumentRecord('order', entityId, ctx)
+  return await buildPreview('order', entityId, record, profile)
 }
 
 export async function loadSalesChannelPreview(entityId: string, ctx: PreviewContext): Promise<ObjectPreviewData> {
@@ -196,5 +220,3 @@ export async function loadSalesChannelPreview(entityId: string, ctx: PreviewCont
     metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
   }
 }
-
-

@@ -11,6 +11,7 @@ import { useGuardedMutation } from '@open-mercato/ui/backend/injection/useGuarde
 import { FormHeader } from '@open-mercato/ui/backend/forms'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { Spinner } from '@open-mercato/ui/primitives/spinner'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { dealFormSchema } from '../DealForm'
 import { createDictionarySelectLabels } from '../utils'
 import { DealSectionCard } from './DealSectionCard'
@@ -20,6 +21,7 @@ import { DealCreateSidebar } from './DealCreateSidebar'
 import { useDealPipelines } from './useDealPipelines'
 import { useDealCustomFields } from './useDealCustomFields'
 import { EMPTY_VALUES, type BaseValues } from './dealFormTypes'
+import { useCurrencyDictionary } from '../hooks/useCurrencyDictionary'
 
 const CONTEXT_ID = 'customers.deals.create'
 const DEAL_ENTITY_ID = 'customers:customer_deal'
@@ -33,6 +35,7 @@ export type CreateDealFormProps = {
 
 export function CreateDealForm({ returnTo, initialValues }: CreateDealFormProps) {
   const t = useT()
+  const displayProfile = useDisplayProfile()
   const router = useRouter()
   const tr = React.useCallback(
     (key: string, fallback: string, params?: Record<string, string | number>) =>
@@ -46,6 +49,16 @@ export function CreateDealForm({ returnTo, initialValues }: CreateDealFormProps)
   })
   const [errors, setErrors] = React.useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const currencyDictionary = useCurrencyDictionary()
+
+  React.useEffect(() => {
+    if (initialValues?.valueCurrency) return
+    const profileCode = displayProfile?.currencyCode?.trim().toUpperCase()
+    if (!profileCode) return
+    const isSupported = currencyDictionary.data?.entries.some((entry) => entry.value === profileCode)
+    if (!isSupported) return
+    setValues((current) => current.valueCurrency ? current : { ...current, valueCurrency: profileCode })
+  }, [currencyDictionary.data, displayProfile?.currencyCode, initialValues?.valueCurrency])
 
   const { pipelines, stages, loadStages } = useDealPipelines()
   const {

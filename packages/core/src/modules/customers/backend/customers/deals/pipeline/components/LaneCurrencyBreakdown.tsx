@@ -9,8 +9,11 @@ import {
 import { Button } from '@open-mercato/ui/primitives/button'
 import { IconButton } from '@open-mercato/ui/primitives/icon-button'
 import { X } from 'lucide-react'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import { translateWithFallback } from '@open-mercato/shared/lib/i18n/translate'
+import { formatDate } from '@open-mercato/shared/lib/display/datetime'
+import { formatNumber } from '@open-mercato/shared/lib/display/money'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { CurrencyBreakdownTable, type CurrencyBreakdownRow } from './CurrencyBreakdownTable'
 
 type LaneCurrencyBreakdownProps = {
@@ -64,6 +67,8 @@ export function LaneCurrencyBreakdown({
   headingCount,
 }: LaneCurrencyBreakdownProps): React.ReactElement {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const [open, setOpen] = React.useState(false)
 
   const closeLabel = translateWithFallback(t, 'customers.deals.kanban.filter.close', 'Close')
@@ -131,7 +136,10 @@ export function LaneCurrencyBreakdown({
             </span>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-bold leading-normal text-foreground">
-                {formatAmount(totalInBaseCurrency)}
+                {formatNumber(totalInBaseCurrency, displayProfile, {
+                  locale,
+                  maximumFractionDigits: 0,
+                }) ?? String(Math.round(totalInBaseCurrency))}
               </span>
               {baseCurrencyCode ? (
                 <span className="text-sm font-normal leading-normal text-muted-foreground">
@@ -153,7 +161,7 @@ export function LaneCurrencyBreakdown({
                 t,
                 'customers.deals.kanban.currencyBreakdown.footerCredit',
                 'NBP mid rate · {date}',
-                { date: formatToday() },
+                { date: formatDate(new Date(), displayProfile, { locale }) ?? '' },
               )}
             </p>
             {!convertedAll && missingRateCurrencies.length > 0 ? (
@@ -171,22 +179,6 @@ export function LaneCurrencyBreakdown({
       </PopoverContent>
     </Popover>
   )
-}
-
-function formatAmount(amount: number): string {
-  return new Intl.NumberFormat(undefined, {
-    style: 'decimal',
-    maximumFractionDigits: 0,
-    useGrouping: true,
-  }).format(Math.round(amount))
-}
-
-function formatToday(): string {
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-  }).format(new Date())
 }
 
 export default LaneCurrencyBreakdown

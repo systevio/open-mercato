@@ -1,7 +1,7 @@
 "use client"
 
 import type { DictionarySelectLabels } from '@open-mercato/core/modules/dictionaries/components/DictionaryEntrySelect'
-import { formatMoney } from '@open-mercato/shared/lib/display/money'
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
 import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
 import type { CustomerDictionaryKind } from '../../lib/dictionaries'
 import { CUSTOMER_INTERACTION_TASK_SOURCE, CUSTOMER_INTERACTION_TASK_TYPE } from '../../lib/interactionCompatibility'
@@ -168,7 +168,14 @@ export function formatCurrency(
   locale?: string,
   profile?: DisplayProfile | null,
 ): string {
-  if (profile !== undefined) return formatMoney(amount, currency, profile, { locale }) ?? String(amount)
+  if (profile) {
+    const code = typeof currency === 'string' && /^[A-Za-z]{3}$/.test(currency.trim())
+      ? currency
+      : null
+    return (code
+      ? formatMoney(amount, code, profile, { locale })
+      : formatNumber(amount, profile, { locale })) ?? String(amount)
+  }
   try {
     return new Intl.NumberFormat(locale, {
       style: 'currency',

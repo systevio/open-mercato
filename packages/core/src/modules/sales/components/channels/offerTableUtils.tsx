@@ -1,5 +1,7 @@
 import * as React from 'react'
 import { withDataTableNamespaces } from '@open-mercato/ui/backend/DataTable'
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
 
 type Translator = (key: string, fallback: string, vars?: Record<string, unknown>) => string
 
@@ -87,12 +89,13 @@ export function mapOfferRow(item: Record<string, unknown>): OfferRow {
 export function renderOfferPriceSummary(
   row: OfferRow,
   t: Translator,
+  profile?: DisplayProfile | null,
 ): React.ReactNode {
   if (!row.prices.length) {
     if (row.productDefaultPrices.length) {
       return (
         <div className="flex flex-wrap gap-2">
-          {row.productDefaultPrices.map((price) => renderPriceBadge(price, t, true))}
+          {row.productDefaultPrices.map((price) => renderPriceBadge(price, t, profile, true))}
         </div>
       )
     }
@@ -100,7 +103,7 @@ export function renderOfferPriceSummary(
       return (
         <span className="text-xs text-muted-foreground">
           {t('sales.channels.offers.table.channelPrice', 'Original product price {{price}}', {
-            price: formatPriceValue(row.productChannelPrice),
+            price: formatPriceValue(row.productChannelPrice, profile),
           })}
         </span>
       )
@@ -109,7 +112,7 @@ export function renderOfferPriceSummary(
   }
   return (
     <div className="flex flex-wrap gap-2">
-      {row.prices.map((price) => renderPriceBadge(price, t))}
+      {row.prices.map((price) => renderPriceBadge(price, t, profile))}
     </div>
   )
 }
@@ -119,13 +122,15 @@ function mapPriceSummary(source: Record<string, unknown> | null): OfferPriceRow 
   return mapPriceRow(source)
 }
 
-function formatPriceValue(price: OfferPriceRow | null): string {
+export function formatPriceValue(price: OfferPriceRow | null, profile?: DisplayProfile | null): string {
   if (!price) return '—'
   const amount = price.displayMode === 'including-tax'
     ? price.unitPriceGross ?? price.unitPriceNet
     : price.unitPriceNet ?? price.unitPriceGross
   if (amount === null || amount === undefined) return price.currencyCode ?? '—'
-  return `${price.currencyCode ?? ''} ${String(amount)}`
+  return price.currencyCode
+    ? formatMoney(amount, price.currencyCode, profile) ?? String(amount)
+    : formatNumber(amount, profile) ?? String(amount)
 }
 
 function mapPriceRow(source: Record<string, unknown>): OfferPriceRow {
@@ -152,18 +157,22 @@ function readString(value: unknown): string | null {
   return null
 }
 
-function renderPriceBadge(price: OfferPriceRow, t: Translator, muted?: boolean) {
+function renderPriceBadge(price: OfferPriceRow, t: Translator, profile?: DisplayProfile | null, muted?: boolean) {
   const label = price.priceKindTitle || price.priceKindCode || t('sales.channels.offers.table.price', 'Price')
   const numeric = price.displayMode === 'including-tax'
     ? price.unitPriceGross ?? price.unitPriceNet
     : price.unitPriceNet ?? price.unitPriceGross
-  const amount = numeric === null || numeric === undefined ? '—' : String(numeric)
+  const amount = numeric === null || numeric === undefined
+    ? '—'
+    : price.currencyCode
+      ? formatMoney(numeric, price.currencyCode, profile) ?? String(numeric)
+      : formatNumber(numeric, profile) ?? String(numeric)
   const className = ['rounded border px-2 py-1 text-xs', muted ? 'bg-muted' : null].filter(Boolean).join(' ')
   return (
     <div key={`${price.id ?? 'price'}-${label}`} className={className}>
       <div className="font-medium">{label}</div>
       <div className="text-muted-foreground">
-        {price.currencyCode ?? ''} {amount}
+        {amount}
       </div>
     </div>
   )

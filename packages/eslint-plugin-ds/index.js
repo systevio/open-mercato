@@ -5,6 +5,7 @@ import { requireLoadingState } from './rules/require-loading-state.js'
 import { requireStatusBadge } from './rules/require-status-badge.js'
 import { noHardcodedStatusColors } from './rules/no-hardcoded-status-colors.js'
 import { noLegacyAlertVariant } from './rules/no-legacy-alert-variant.js'
+import { noBespokeMoneyFormat } from './rules/no-bespoke-money-format.js'
 
 const plugin = {
   meta: {
@@ -19,6 +20,7 @@ const plugin = {
     'require-status-badge': requireStatusBadge,
     'no-hardcoded-status-colors': noHardcodedStatusColors,
     'no-legacy-alert-variant': noLegacyAlertVariant,
+    'no-bespoke-money-format': noBespokeMoneyFormat,
   },
 }
 
@@ -44,6 +46,7 @@ plugin.configs = {
       'om-ds/require-status-badge': 'warn',
       'om-ds/no-hardcoded-status-colors': 'warn',
       'om-ds/no-legacy-alert-variant': 'warn',
+      'om-ds/no-bespoke-money-format': 'warn',
     },
   },
 }

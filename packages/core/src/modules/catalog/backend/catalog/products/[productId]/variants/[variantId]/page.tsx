@@ -14,6 +14,9 @@ import { buildRecordInjectionContext, useSetCurrentRecordInjectionContext } from
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { ErrorMessage, RecordNotFoundState } from '@open-mercato/ui/backend/detail'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { extractCustomFieldEntries } from '@open-mercato/shared/lib/crud/custom-fields-client'
 import { E } from '#generated/entities.ids.generated'
 import { SendObjectMessageDialog } from '@open-mercato/ui/backend/messages'
@@ -86,7 +89,10 @@ export function handleVariantDeleteError(
   flash(message, 'error')
 }
 
-function resolveVariantPriceLabel(prices: Record<string, VariantPriceDraft> | undefined): string | null {
+export function resolveVariantPriceLabel(
+  prices: Record<string, VariantPriceDraft> | undefined,
+  profile?: DisplayProfile | null,
+): string | null {
   if (!prices || typeof prices !== 'object') return null
   const entries = Object.values(prices)
   for (const entry of entries) {
@@ -96,7 +102,9 @@ function resolveVariantPriceLabel(prices: Record<string, VariantPriceDraft> | un
       typeof entry.currencyCode === 'string' && entry.currencyCode.trim().length
         ? entry.currencyCode.trim().toUpperCase()
         : null
-    return currencyCode ? `${currencyCode} ${amount}` : amount
+    return currencyCode
+      ? formatMoney(amount, currencyCode, profile)
+      : formatNumber(amount, profile)
   }
   return null
 }
@@ -104,6 +112,7 @@ function resolveVariantPriceLabel(prices: Record<string, VariantPriceDraft> | un
 export default function EditVariantPage({ params }: { params?: { productId?: string; variantId?: string } }) {
   const router = useRouter()
   const t = useT()
+  const displayProfile = useDisplayProfile()
   const pathname = usePathname()
   const productId = params?.productId ? String(params.productId) : null
   const variantId = params?.variantId ? String(params.variantId) : null
@@ -578,7 +587,7 @@ export default function EditVariantPage({ params }: { params?: { productId?: str
                         ? initialValues.sku
                         : '-'),
                     [t('catalog.variants.form.pricesLabel')]:
-                      resolveVariantPriceLabel(initialValues?.prices) ?? '-',
+                      resolveVariantPriceLabel(initialValues?.prices, displayProfile) ?? '-',
                   },
                 },
               }}

@@ -28,6 +28,9 @@ import { E } from '#generated/entities.ids.generated'
 import { buildAttachmentImageUrl, slugifyAttachmentFileName } from '@open-mercato/core/modules/attachments/lib/imageUrls'
 import { cn } from '@open-mercato/shared/lib/utils'
 import { createLogger } from '@open-mercato/shared/lib/logger'
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 
 const logger = createLogger('sales')
 
@@ -990,6 +993,7 @@ function ProductSelectInput({
   currentOfferId?: string | null
 }) {
   const t = useT()
+  const displayProfile = useDisplayProfile()
   const [query, setQuery] = React.useState('')
   const [results, setResults] = React.useState<ProductSearchResult[]>([])
   const [isLoading, setLoading] = React.useState(false)
@@ -1120,7 +1124,7 @@ function ProductSelectInput({
                         ) : null}
                       </div>
                       <div className="text-xs font-medium text-muted-foreground">
-                        {product.pricing ? formatPriceDisplay(product.pricing) : t('sales.channels.offers.form.productPriceMissing', 'No price')}
+                        {product.pricing ? formatPriceDisplay(product.pricing, displayProfile) : t('sales.channels.offers.form.productPriceMissing', 'No price')}
                       </div>
                       </div>
                     {hasConflict ? (
@@ -1719,13 +1723,15 @@ function mapProductSearchResult(
   }
 }
 
-function formatPriceDisplay(pricing: PricingSummary | null): string {
+export function formatPriceDisplay(pricing: PricingSummary | null, profile?: DisplayProfile | null): string {
   if (!pricing) return '—'
   const amount = pricing.displayMode === 'including-tax'
     ? pricing.unitPriceGross ?? pricing.unitPriceNet
     : pricing.unitPriceNet ?? pricing.unitPriceGross
   if (!amount) return pricing.currencyCode ?? '—'
-  return `${pricing.currencyCode ?? ''} ${amount}`
+  return pricing.currencyCode
+    ? formatMoney(amount, pricing.currencyCode, profile) ?? String(amount)
+    : formatNumber(amount, profile) ?? String(amount)
 }
 
 function PriceOverridesEditor({
@@ -1742,6 +1748,7 @@ function PriceOverridesEditor({
   onRemoveDraft?: (draft: PriceOverrideDraft) => Promise<boolean> | boolean
 }) {
   const t = useT()
+  const displayProfile = useDisplayProfile()
   const baseAmount = React.useMemo(() => {
     if (!basePrice) return ''
     const net = basePrice.unitPriceNet ?? null
@@ -1814,7 +1821,7 @@ function PriceOverridesEditor({
           {t('sales.channels.offers.pricing.basePriceLabel', 'Original product price')}
         </div>
         <div className="text-base font-semibold">
-          {basePrice ? formatPriceDisplay(basePrice) : t('sales.channels.offers.pricing.basePriceMissing', 'No price found')}
+          {basePrice ? formatPriceDisplay(basePrice, displayProfile) : t('sales.channels.offers.pricing.basePriceMissing', 'No price found')}
         </div>
         <div className="text-xs text-muted-foreground">
           {t('sales.channels.offers.pricing.basePriceHelp', 'Shown to shoppers when no override is configured.')}
@@ -1916,7 +1923,7 @@ function PriceOverridesEditor({
               {t(
                 'sales.channels.offers.pricing.emptyFallback',
                 'Using {price} from the product until you add overrides.',
-                { price: formatPriceDisplay(basePrice) },
+                { price: formatPriceDisplay(basePrice, displayProfile) },
               )}
             </>
           ) : null}
@@ -1928,6 +1935,7 @@ function PriceOverridesEditor({
 
 function ProductOverviewCard({ summary, variants }: { summary: ProductSummary; variants: ProductVariantPreview[] }) {
   const t = useT()
+  const displayProfile = useDisplayProfile()
   if (!summary) {
     return (
       <p className="text-xs text-muted-foreground">
@@ -1954,7 +1962,7 @@ function ProductOverviewCard({ summary, variants }: { summary: ProductSummary; v
           ) : null}
           <div className="text-sm">
             <span className="text-muted-foreground">{t('sales.channels.offers.form.productPriceLabel', 'Base price')}:</span>{' '}
-            <span className="font-semibold">{formatPriceDisplay(summary.pricing)}</span>
+            <span className="font-semibold">{formatPriceDisplay(summary.pricing, displayProfile)}</span>
           </div>
         </div>
       </div>

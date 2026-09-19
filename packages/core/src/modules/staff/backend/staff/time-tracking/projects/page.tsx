@@ -24,9 +24,10 @@ import { useBackendChrome } from '@open-mercato/ui/backend/BackendChromeProvider
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { formatCurrency, formatDate } from '@open-mercato/ui/utils/format'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { hasAllFeatures } from '@open-mercato/shared/security/features'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
-import { useT, type TranslateFn } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT, type TranslateFn } from '@open-mercato/shared/lib/i18n/context'
 import { formatDateTime } from '@open-mercato/shared/lib/time'
 import { ProjectColorDot } from '../../../../lib/timesheets-ui/ProjectColorDot'
 import { resolveProjectColorHex } from '../../../../lib/timesheets-ui/colors'
@@ -230,6 +231,8 @@ function mapApiProject(item: Record<string, unknown>): ProjectRow {
 
 export default function TimesheetProjectsPage() {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const router = useRouter()
   const searchParams = useSearchParams()
   const scopeVersion = useOrganizationScopeVersion()
@@ -888,7 +891,7 @@ export default function TimesheetProjectsPage() {
         meta: { priority: 5 },
         cell: ({ row }) => (
           <span className="block text-right font-mono text-sm tabular-nums text-foreground">
-            {formatCurrency(row.original.hourlyRate, row.original.currencyCode) ?? '—'}
+            {formatCurrency(row.original.hourlyRate, row.original.currencyCode, locale, displayProfile) ?? '—'}
           </span>
         ),
       })
@@ -916,7 +919,7 @@ export default function TimesheetProjectsPage() {
         meta: { priority: 5 },
         cell: ({ row }) => (
           <span className="block text-right font-mono text-sm tabular-nums text-foreground">
-            {formatCurrency(row.original.cost, row.original.currencyCode) ?? '—'}
+            {formatCurrency(row.original.cost, row.original.currencyCode, locale, displayProfile) ?? '—'}
           </span>
         ),
       })
@@ -944,7 +947,7 @@ export default function TimesheetProjectsPage() {
             ? t('staff.time_tracking.projects.budget.hoursValue', '{value} h', {
                 value: Math.round(burn.budgetValue * 10) / 10,
               })
-            : formatCurrency(burn.budgetValue, row.original.currencyCode) ?? `${burn.budgetValue}`
+            : formatCurrency(burn.budgetValue, row.original.currencyCode, locale, displayProfile) ?? `${burn.budgetValue}`
           : null
         return (
           <ProjectBudgetCell

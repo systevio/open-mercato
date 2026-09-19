@@ -1,4 +1,5 @@
 import { fillTemplateTokens, renderTemplateTokens, type TemplateFillSlot } from '../lib/templateFill'
+import { US_DISPLAY_TEMPLATE } from '@open-mercato/shared/lib/display/templates'
 
 const DEAL_ID = '11111111-1111-4111-8111-111111111111'
 
@@ -88,6 +89,67 @@ describe('fillTemplateTokens', () => {
     const now = new Date('2026-01-02T00:30:00+14:00')
 
     expect(fillTemplateTokens('<p>{{date}}</p>', [], { locale: 'en-US', now })).toBe('<p>1/1/2026</p>')
+  })
+
+  it('materializes formatted money with the owning organization display profile', () => {
+    const profile = {
+      ...US_DISPLAY_TEMPLATE,
+      currencyDisplay: 'symbol_and_code' as const,
+      negativeStyle: 'parentheses' as const,
+    }
+    const slots: TemplateFillSlot[] = [{
+      slot: 'quote',
+      entityType: 'quote',
+      rawItem: {
+        id: DEAL_ID,
+        quoteNumber: 'Q-100',
+        grandTotalGross: -1234.5,
+        currencyCode: 'USD',
+      },
+    }]
+
+    expect(fillTemplateTokens(
+      '<p>{{quote.formattedTotal}}</p>',
+      slots,
+      { locale: 'pl-PL', displayProfile: profile },
+    )).toBe('<p>($1,234.50 USD)</p>')
+  })
+
+  it('preserves explicit foreign denomination instead of applying profile currency', () => {
+    const slots: TemplateFillSlot[] = [{
+      slot: 'quote',
+      entityType: 'quote',
+      rawItem: {
+        id: DEAL_ID,
+        quoteNumber: 'Q-101',
+        grandTotalGross: 1234.5,
+        currencyCode: 'PLN',
+      },
+    }]
+
+    const rendered = fillTemplateTokens(
+      '<p>{{quote.formattedTotal}}</p><p>{{quote.total}} {{quote.currency}}</p>',
+      slots,
+      { locale: 'en-US', displayProfile: US_DISPLAY_TEMPLATE },
+    )
+
+    expect(rendered).toMatch(/^<p>PLN\s1,234\.50<\/p><p>1234\.5 PLN<\/p>$/)
+    expect(rendered).not.toContain('$')
+  })
+
+  it('does not infer a denomination for formatted money when source currency is missing', () => {
+    const result = renderTemplateTokens(
+      '<p>{{quote.formattedTotal}}</p>',
+      [{
+        slot: 'quote',
+        entityType: 'quote',
+        rawItem: { id: DEAL_ID, quoteNumber: 'Q-102', grandTotalGross: 1234.5 },
+      }],
+      { locale: 'en-US', displayProfile: US_DISPLAY_TEMPLATE },
+    )
+
+    expect(result.html).toBe('<p></p>')
+    expect(result.unresolvedTokens).toEqual(['quote.formattedTotal'])
   })
 
   it.each([

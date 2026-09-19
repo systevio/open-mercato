@@ -50,8 +50,10 @@ import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useGuardedMutation } from '@open-mercato/ui/backend/injection/useGuardedMutation'
 import { useAppEvent } from '@open-mercato/ui/backend/injection/useAppEvent'
 import type { RowActionItem } from '@open-mercato/ui/backend/RowActions'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import { translateWithFallback } from '@open-mercato/shared/lib/i18n/translate'
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import type { FilterOptionTone } from '@open-mercato/shared/lib/query/advanced-filter'
 import { ViewTabsRow } from './components/ViewTabsRow'
@@ -413,6 +415,8 @@ function sortDeals(deals: DealCardData[], option: SortOption): DealCardData[] {
 
 export default function DealsKanbanPage(): React.ReactElement {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   // Resolved through the component registry so downstream apps can replace,
   // wrap, or props-transform the quick-add dialog without forking this page.
   const QuickDealDialog = useRegisteredComponent<QuickDealDialogProps>(
@@ -1907,31 +1911,37 @@ export default function DealsKanbanPage(): React.ReactElement {
     // The previous implementation summed `valueAmount` across every selected deal and labeled
     // the result with whichever currency happened to appear first — e.g. selecting €100k + $50k
     // displayed as "€150k", which is meaningless. We now keep one bucket per currency.
-    const totalsByCurrency = new Map<string, number>()
+    const totalsByCurrency = new Map<string | null, number>()
     const ids: string[] = []
     for (const deal of deals) {
       if (!selectedDealIds.has(deal.id)) continue
       ids.push(deal.id)
       if (typeof deal.valueAmount === 'number' && Number.isFinite(deal.valueAmount) && deal.valueAmount > 0) {
-        const code = deal.valueCurrency && deal.valueCurrency.length === 3
+        const code = deal.valueCurrency && /^[A-Za-z]{3}$/.test(deal.valueCurrency.trim())
           ? deal.valueCurrency.toUpperCase()
-          : 'USD'
+          : null
         totalsByCurrency.set(code, (totalsByCurrency.get(code) ?? 0) + deal.valueAmount)
       }
     }
     const rows = Array.from(totalsByCurrency.entries())
       .map(([code, amount]) => ({ code, amount }))
       .sort((a, b) => b.amount - a.amount)
-    const formatOne = (code: string, amount: number) => {
-      try {
-        return new Intl.NumberFormat(undefined, {
-          style: 'currency',
-          currency: code,
+    const formatOne = (code: string | null, amount: number) => {
+      if (code) {
+        return formatMoney(amount, code, displayProfile, {
+          locale,
           maximumFractionDigits: 0,
-        }).format(amount)
-      } catch {
-        return `${code} ${Math.round(amount)}`
+        }) ?? `${code} ${Math.round(amount)}`
       }
+      const formatted = formatNumber(amount, displayProfile, {
+        locale,
+        maximumFractionDigits: 0,
+      }) ?? String(Math.round(amount))
+      return `${formatted} · ${translateWithFallback(
+        t,
+        'customers.deals.kanban.currencyBreakdown.currencyUnavailable',
+        'Currency unavailable',
+      )}`
     }
     let totalLabel: string | null = null
     if (rows.length === 1) {
@@ -1949,7 +1959,7 @@ export default function DealsKanbanPage(): React.ReactElement {
     // consumers (CSV export, change-stage dialog) don't assume a single canonical currency.
     const currency = rows.length === 1 ? rows[0].code : null
     return { count: ids.length, totalLabel, currency, ids }
-  }, [deals, selectedDealIds])
+  }, [deals, displayProfile, locale, selectedDealIds, t])
 
   const handleBulkClear = React.useCallback(() => {
     setSelectedDealIds(new Set())
@@ -2618,10 +2628,10 @@ export default function DealsKanbanPage(): React.ReactElement {
                           </span>
                         )}
                         <span>
-                          {new Intl.NumberFormat(undefined, {
-                            style: 'decimal',
+                          {formatNumber(boardSummary.totalInBaseCurrency, displayProfile, {
+                            locale,
                             maximumFractionDigits: 0,
-                          }).format(boardSummary.totalInBaseCurrency)}
+                          }) ?? String(Math.round(boardSummary.totalInBaseCurrency))}
                         </span>
                         <span className="text-xs font-medium text-muted-foreground">
                           {boardSummary.baseCurrencyCode}
@@ -2906,17 +2916,24 @@ export default function DealsKanbanPage(): React.ReactElement {
                       {typeof activeDragDeal.valueAmount === 'number' ? (
                         <div className="flex items-baseline gap-1.5">
                           <span className="text-lg font-bold leading-normal text-foreground">
-                            {new Intl.NumberFormat(undefined, {
-                              style: 'decimal',
+                            {formatNumber(activeDragDeal.valueAmount, displayProfile, {
+                              locale,
                               maximumFractionDigits: 0,
-                              useGrouping: true,
-                            }).format(activeDragDeal.valueAmount)}
+                            }) ?? String(Math.round(activeDragDeal.valueAmount))}
                           </span>
                           {activeDragDeal.valueCurrency ? (
                             <span className="text-sm font-semibold leading-normal text-muted-foreground">
                               {activeDragDeal.valueCurrency.toUpperCase()}
                             </span>
-                          ) : null}
+                          ) : (
+                            <span className="text-sm font-semibold leading-normal text-muted-foreground">
+                              {translateWithFallback(
+                                t,
+                                'customers.deals.kanban.currencyBreakdown.currencyUnavailable',
+                                'Currency unavailable',
+                              )}
+                            </span>
+                          )}
                         </div>
                       ) : null}
                       {activeDragDeal.primaryCompany ? (

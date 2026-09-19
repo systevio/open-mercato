@@ -48,6 +48,7 @@ import {
 import { E } from "#generated/entities.ids.generated";
 import { useT, useLocale } from "@open-mercato/shared/lib/i18n/context";
 import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider';
+import { formatNumber as formatMarketNumber } from '@open-mercato/shared/lib/display/money';
 import { useOrganizationScopeDetail } from "@open-mercato/shared/lib/frontend/useOrganizationScope";
 import { formatMoney, normalizeNumber } from "./lineItemUtils";
 import type { SalesLineRecord } from "./lineItemTypes";
@@ -508,15 +509,12 @@ export function LineItemDialog({
     [locale],
   );
   const numberExample = React.useMemo(() => {
-    try {
-      return new Intl.NumberFormat(locale, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(110.7);
-    } catch {
-      return "110.70";
-    }
-  }, [locale]);
+    return formatMarketNumber(110.7, displayProfile, {
+      locale,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }) ?? "110.70";
+  }, [displayProfile, locale]);
   const scope = useOrganizationScopeDetail();
   const resolvedOrganizationId = organizationId ?? scope.organizationId ?? null;
   const resolvedTenantId = tenantId ?? scope.tenantId ?? null;
@@ -1120,7 +1118,7 @@ export function LineItemDialog({
         setPriceLoading(false);
       }
     },
-    [parseUserNumber, t],
+    [displayProfile, locale, parseUserNumber, t],
   );
 
   const selectPriceAfterRefresh = React.useCallback(
@@ -2683,11 +2681,13 @@ export function LineItemDialog({
     loadVariantOptions,
     fetchLineStatusItems,
     deletedCatalogReference,
+    displayProfile,
     priceLoading,
     priceOptions,
     productOption,
     unitOptions,
     lineMode,
+    locale,
     variantOption,
     t,
     taxRateMap,

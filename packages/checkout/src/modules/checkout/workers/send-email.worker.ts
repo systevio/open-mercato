@@ -4,6 +4,8 @@ import type { JobContext, QueuedJob, WorkerMeta } from '@open-mercato/queue'
 import { sendEmail } from '@open-mercato/shared/lib/email/send'
 import { findOneWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import { resolveTranslations } from '@open-mercato/shared/lib/i18n/server'
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
 import { CheckoutTransaction, CheckoutLink } from '../data/entities'
 import PaymentStartEmail from '../emails/PaymentStartEmail'
 import PaymentSuccessEmail from '../emails/PaymentSuccessEmail'
@@ -24,6 +26,10 @@ export const metadata: WorkerMeta = {
 
 type HandlerContext = JobContext & {
   resolve: <T = unknown>(name: string) => T
+}
+
+type DisplayProfileResolver = {
+  resolve: (scope: { tenantId: string; organizationId: string }) => Promise<DisplayProfile | null>
 }
 
 function interpolateVariables(template: string, variables: Record<string, string>): string {
@@ -133,8 +139,19 @@ export default async function handle(job: QueuedJob<CheckoutEmailJob>, ctx: Hand
 
   const firstName = transaction.firstName ?? t('checkout.systemEmails.common.customerFallback')
   const linkTitle = link?.title ?? link?.name ?? t('checkout.systemEmails.common.linkTitleFallback')
-  const amount = String(transaction.amount ?? '0.00')
+  const rawAmount = String(transaction.amount ?? '0.00')
   const currencyCode = transaction.currencyCode ?? ''
+  let displayProfile: DisplayProfile | null = null
+  try {
+    displayProfile = await ctx.resolve<DisplayProfileResolver>('displayProfileResolver').resolve({
+      tenantId: payload.tenantId,
+      organizationId: payload.organizationId,
+    })
+  } catch {
+    displayProfile = null
+  }
+  const amount = formatNumber(rawAmount, displayProfile) ?? rawAmount
+  const formattedAmount = formatMoney(rawAmount, currencyCode, displayProfile) ?? `${amount} ${currencyCode}`.trim()
   const errorMessage = payload.type === 'error' ? (payload.errorMessage ?? null) : null
 
   const variables: Record<string, string> = {
@@ -181,13 +198,13 @@ export default async function handle(job: QueuedJob<CheckoutEmailJob>, ctx: Hand
       organizationId: payload.organizationId,
       react: PaymentStartEmail({
         firstName,
-        amount,
+        amount: formattedAmount,
         currencyCode,
         linkTitle,
         bodyHtml,
         copy: {
           title: t('checkout.systemEmails.start.title'),
-          preview: t('checkout.systemEmails.start.preview', { amount, currencyCode }),
+          preview: t('checkout.systemEmails.start.preview', { amount: formattedAmount, currencyCode: '' }),
           greeting: t('checkout.systemEmails.start.greeting', { firstName, linkTitle }),
           message: t('checkout.systemEmails.start.message'),
           hint: t('checkout.systemEmails.start.hint'),
@@ -210,14 +227,14 @@ export default async function handle(job: QueuedJob<CheckoutEmailJob>, ctx: Hand
       organizationId: payload.organizationId,
       react: PaymentSuccessEmail({
         firstName,
-        amount,
+        amount: formattedAmount,
         currencyCode,
         linkTitle,
         transactionId: transaction.id,
         bodyHtml,
         copy: {
           title: t('checkout.systemEmails.success.title'),
-          preview: t('checkout.systemEmails.success.preview', { amount, currencyCode }),
+          preview: t('checkout.systemEmails.success.preview', { amount: formattedAmount, currencyCode: '' }),
           greeting: t('checkout.systemEmails.success.greeting', { firstName, linkTitle }),
           receipt: t('checkout.systemEmails.success.receipt'),
           hint: t('checkout.systemEmails.success.hint'),

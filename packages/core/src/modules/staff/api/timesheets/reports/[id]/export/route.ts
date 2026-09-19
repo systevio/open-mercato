@@ -44,6 +44,7 @@ import {
   readSearchParamsRecord,
   runTimesheetInterceptors,
 } from '../../../_shared/withTimesheetInterceptors'
+import { resolveDisplayProfileForScope } from '@open-mercato/core/modules/markets/lib/request-profile'
 
 const logger = createLogger('staff').child({ component: 'api/timesheets/reports/export' })
 
@@ -186,6 +187,7 @@ export async function GET(req: Request) {
       directory: sheet.directory,
       labels,
     })
+    const displayProfile = await resolveDisplayProfileForScope(container, { tenantId, organizationId })
 
     const periodFrom = report.periodFrom instanceof Date ? report.periodFrom.toISOString().slice(0, 10) : ''
     const periodTo = report.periodTo instanceof Date ? report.periodTo.toISOString().slice(0, 10) : ''
@@ -212,6 +214,7 @@ export async function GET(req: Request) {
         report.roundingDirection ?? 'up',
       ),
       labels: exportLabels(translate),
+      displayProfile,
     })
 
     // Append-only audit. Never a lock — screen 14 note 5.

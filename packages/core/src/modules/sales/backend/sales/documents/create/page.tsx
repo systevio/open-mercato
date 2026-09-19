@@ -51,7 +51,7 @@ export default function CreateSalesDocumentPage() {
     }
   }, [inboxDraft])
 
-  const handleCreated = React.useCallback(async ({ id, kind }: { id: string; kind: 'order' | 'quote' }) => {
+  const handleCreated = React.useCallback(async ({ id, kind, currencyCode: createdCurrencyCode }: { id: string; kind: 'order' | 'quote'; currencyCode: string }) => {
     if (inboxDraft) {
       try {
         sessionStorage.removeItem('inbox_ops.orderDraft')
@@ -64,7 +64,7 @@ export default function CreateSalesDocumentPage() {
       const lineEndpoint = kind === 'order' ? '/api/sales/order-lines' : '/api/sales/quote-lines'
       const currencyCode = typeof inboxDraft.payload.currencyCode === 'string'
         ? inboxDraft.payload.currencyCode.trim().toUpperCase()
-        : 'USD'
+        : createdCurrencyCode
 
       for (const [index, item] of lineItems.entries()) {
         try {

@@ -566,7 +566,7 @@ const suggestPriceAdjustmentTool: CatalogAiToolDefinition = {
         currentPrice,
         proposedPrice: {
           amount: currentPrice?.amount ?? 0,
-          currency: currentPrice?.currency ?? (hit.bundle.product.primaryCurrencyCode ?? 'USD'),
+          currency: currentPrice?.currency ?? hit.bundle.product.primaryCurrencyCode ?? '',
           priceKindId: currentPrice?.priceKindId ?? (input.priceKindId ?? ''),
         },
         rationale: '',

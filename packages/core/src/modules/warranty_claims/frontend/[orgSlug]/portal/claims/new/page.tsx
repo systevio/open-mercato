@@ -31,7 +31,9 @@ import { apiCall } from '@open-mercato/ui/backend/utils/apiCall'
 import { usePortalContext } from '@open-mercato/ui/portal/PortalContext'
 import { PortalPageHeader } from '@open-mercato/ui/portal/components/PortalPageHeader'
 import { PortalCard, PortalCardHeader } from '@open-mercato/ui/portal/components/PortalCard'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { localizeDictionaryLabel } from '@open-mercato/core/modules/warranty_claims/lib/dictionaryLabels'
+import { formatWarrantyAmount } from '@open-mercato/core/modules/warranty_claims/lib/displayMoney'
 import {
   ATTACHMENT_ACCEPT_TYPES,
   validateAttachmentFile,
@@ -228,16 +230,6 @@ function formatQuantity(value: string | number | null | undefined, fallback: str
   return parsed === null ? fallback : parsed.toLocaleString(locale || undefined)
 }
 
-function formatOrderTotal(value: string | number | null, currencyCode: string | null, fallback: string, locale: string): string {
-  const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : Number.NaN
-  if (!Number.isFinite(parsed)) return fallback
-  if (currencyCode && /^[A-Z]{3}$/.test(currencyCode)) {
-    return new Intl.NumberFormat(locale || undefined, { style: 'currency', currency: currencyCode }).format(parsed)
-  }
-  const formatted = parsed.toLocaleString(locale || undefined)
-  return currencyCode ? `${formatted} ${currencyCode}` : formatted
-}
-
 function optionLabel(options: PortalOption[], value: string): string {
   return options.find((option) => option.value === value)?.label ?? value
 }
@@ -270,6 +262,7 @@ const CREATE_MUTATION_CONTEXT_ID = 'warranty_claims.portal.claim.create'
 export default function WarrantyClaimPortalNewPage({ params }: Props) {
   const t = useT()
   const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const router = useRouter()
   const { auth } = usePortalContext()
   const { user, loading } = auth
@@ -1006,7 +999,7 @@ export default function WarrantyClaimPortalNewPage({ params }: Props) {
                           <p className="font-medium text-foreground">{order.orderNumber}</p>
                           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                             <span>{formatDate(order.placedAt, t('warranty_claims.portal.value.notAvailable'), locale)}</span>
-                            <span>{formatOrderTotal(order.grandTotalGrossAmount, order.currencyCode, t('warranty_claims.portal.value.notAvailable'), locale)}</span>
+                            <span>{formatWarrantyAmount(order.grandTotalGrossAmount, order.currencyCode, displayProfile, locale) ?? t('warranty_claims.portal.value.notAvailable')}</span>
                           </div>
                         </div>
                       </div>

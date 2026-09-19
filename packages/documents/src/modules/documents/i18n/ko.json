@@ -208,6 +208,8 @@
   "documents.entityFields.status": "상태",
   "documents.entityFields.subtitle": "부제",
   "documents.entityFields.title": "제목",
+  "documents.entityFields.formattedTotal": "서식이 적용된 합계",
+  "documents.entityFields.formattedValue": "서식이 적용된 값",
   "documents.entityFields.total": "합계",
   "documents.entityFields.value": "값",
   "documents.entityFields.valueCurrency": "통화",

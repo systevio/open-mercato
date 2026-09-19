@@ -8,8 +8,10 @@ import RevenueKpiWidget from '../revenue-kpi/widget.client'
 import { DEFAULT_SETTINGS as REVENUE_SETTINGS } from '../revenue-kpi/config'
 import TopCustomersWidget from '../top-customers/widget.client'
 import { DEFAULT_SETTINGS as TOP_CUSTOMERS_SETTINGS } from '../top-customers/config'
+import { US_DISPLAY_TEMPLATE } from '@open-mercato/shared/lib/display/templates'
 
 const fetchWidgetDataMock = jest.fn()
+const useDisplayProfileMock = jest.fn()
 
 jest.mock('@open-mercato/shared/lib/i18n/context', () => ({
   useLocale: () => 'pl-PL',
@@ -24,6 +26,10 @@ jest.mock('@open-mercato/shared/lib/logger', () => ({
 
 jest.mock('@open-mercato/ui/backend/dashboard/widgetData', () => ({
   useWidgetData: () => fetchWidgetDataMock,
+}))
+
+jest.mock('@open-mercato/ui/backend/markets/MarketProfileProvider', () => ({
+  useDisplayProfile: () => useDisplayProfileMock(),
 }))
 
 jest.mock('@open-mercato/ui/backend/date-range', () => ({
@@ -89,9 +95,10 @@ function widgetProps<TSettings>(
 describe('dashboard analytics widget currency formatting', () => {
   beforeEach(() => {
     fetchWidgetDataMock.mockReset()
+    useDisplayProfileMock.mockReturnValue(US_DISPLAY_TEMPLATE)
   })
 
-  test('renders response currency metadata through the active Polish locale', async () => {
+  test('preserves response currency while applying the active display profile', async () => {
     fetchWidgetDataMock.mockResolvedValue({
       value: 1234,
       data: [],
@@ -109,6 +116,30 @@ describe('dashboard analytics widget currency formatting', () => {
 
     await waitFor(() => expect(screen.getByTestId('kpi-value')).toHaveTextContent(/zł|PLN/))
     expect(screen.getByTestId('kpi-value')).not.toHaveTextContent(/USD|\$/)
+  })
+
+  test('reacts to profile money presentation without relabelling explicit currency', async () => {
+    useDisplayProfileMock.mockReturnValue({
+      ...US_DISPLAY_TEMPLATE,
+      currencyDisplay: 'symbol_and_code',
+      negativeStyle: 'parentheses',
+    })
+    fetchWidgetDataMock.mockResolvedValue({
+      value: -1234,
+      data: [],
+      metadata: {
+        fetchedAt: '2026-07-29T00:00:00.000Z',
+        recordCount: 1,
+        currency: 'USD',
+      },
+    })
+
+    render(<RevenueKpiWidget {...widgetProps(
+      'dashboards.analytics.revenueKpi',
+      REVENUE_SETTINGS,
+    )} />)
+
+    await waitFor(() => expect(screen.getByTestId('kpi-value')).toHaveTextContent(/\(\$1,234 USD\)/))
   })
 
   test('renders an explicit unlabelled state when no reliable currency resolves', async () => {

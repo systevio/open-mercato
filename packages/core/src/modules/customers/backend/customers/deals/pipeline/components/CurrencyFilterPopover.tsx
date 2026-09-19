@@ -9,8 +9,11 @@ import {
 } from '@open-mercato/ui/primitives/popover'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { IconButton } from '@open-mercato/ui/primitives/icon-button'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import { translateWithFallback } from '@open-mercato/shared/lib/i18n/translate'
+import { formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { ChipButton } from './ChipButton'
 
 export type CurrencyFilterRow = {
@@ -57,6 +60,8 @@ export function CurrencyFilterPopover({
   onApply,
 }: CurrencyFilterPopoverProps): React.ReactElement {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const [open, setOpen] = React.useState(false)
   const [draft, setDraft] = React.useState<string | null>(selectedCurrency)
 
@@ -145,7 +150,7 @@ export function CurrencyFilterPopover({
                   {
                     label: headingLabel,
                     count: headingCount,
-                    total: formatAmount(totalInBaseCurrency),
+                    total: formatAmount(totalInBaseCurrency, locale, displayProfile),
                     currency: baseCurrencyCode ?? '',
                   },
                 )}
@@ -236,6 +241,8 @@ function CurrencyRow({
   count,
 }: CurrencyRowProps): React.ReactElement {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const rowBg = selected ? 'bg-brand-violet/10' : 'bg-card hover:bg-muted'
   const codeColor = selected ? 'text-brand-violet' : 'text-foreground'
   const amountColor = selected ? 'text-brand-violet font-semibold' : 'text-foreground font-normal'
@@ -267,7 +274,7 @@ function CurrencyRow({
       <span className="flex-1" aria-hidden="true" />
       <span className="flex items-baseline gap-1">
         <span className={`text-sm leading-normal tabular-nums ${amountColor}`}>
-          {formatAmount(amount)}
+          {formatAmount(amount, locale, displayProfile)}
         </span>
         {!isAllCurrencies || amountCurrency ? (
           <span className={`text-xs leading-normal ${currencyColor}`}>{amountCurrency}</span>
@@ -291,12 +298,8 @@ function RadioDot({ selected }: { selected: boolean }): React.ReactElement {
   )
 }
 
-function formatAmount(amount: number): string {
-  return new Intl.NumberFormat(undefined, {
-    style: 'decimal',
-    maximumFractionDigits: 0,
-    useGrouping: true,
-  }).format(Math.round(amount))
+function formatAmount(amount: number, locale: string, profile: DisplayProfile | null): string {
+  return formatNumber(Math.round(amount), profile, { locale, maximumFractionDigits: 0 }) ?? String(Math.round(amount))
 }
 
 function formatToday(): string {

@@ -23,6 +23,11 @@ jest.mock('@open-mercato/shared/lib/i18n/context', () => ({
     typeof fallbackOrParams === 'string' ? fallbackOrParams : key,
 }))
 
+let marketCurrencyCode = 'USD'
+jest.mock('@open-mercato/ui/backend/markets/MarketProfileProvider', () => ({
+  useDisplayProfile: () => ({ currencyCode: marketCurrencyCode }),
+}))
+
 let capturedInitialValues: Record<string, unknown> | null = null
 let capturedOnSubmit: ((values: Record<string, unknown>) => Promise<void>) | null = null
 jest.mock('@open-mercato/ui/backend/CrudForm', () => ({
@@ -82,6 +87,7 @@ describe('QuickDealDialog default probability (#4329)', () => {
     capturedInitialValues = null
     capturedOnSubmit = null
     mockCreateCrud.mockClear()
+    marketCurrencyCode = 'USD'
     registerComponentOverrides([])
   })
 
@@ -98,6 +104,19 @@ describe('QuickDealDialog default probability (#4329)', () => {
   it('leaves the field empty when the default is null', () => {
     renderDialog({ defaultProbability: null })
     expect(capturedInitialValues?.probability).toBeNull()
+  })
+
+  it('prefers the market currency when it is supported by the active dictionary', () => {
+    renderDialog({ currencies: [{ code: 'PLN', isBase: true }, { code: 'USD' }] })
+
+    expect(capturedInitialValues?.valueCurrency).toBe('USD')
+  })
+
+  it('falls back to the tenant base currency when the market currency is unsupported', () => {
+    marketCurrencyCode = 'CAD'
+    renderDialog({ currencies: [{ code: 'PLN', isBase: true }, { code: 'USD' }] })
+
+    expect(capturedInitialValues?.valueCurrency).toBe('PLN')
   })
 
   it('omits probability from the create payload when the default is null', async () => {

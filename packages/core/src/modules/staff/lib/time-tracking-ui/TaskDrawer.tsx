@@ -37,8 +37,9 @@ import { InjectionSpot } from '@open-mercato/ui/backend/injection/InjectionSpot'
 import { extensionPoints } from '@open-mercato/core/modules/staff/extension-points'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { formatCurrency, formatDate } from '@open-mercato/ui/utils/format'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { hasFeature } from '@open-mercato/shared/security/features'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { createLogger } from '@open-mercato/shared/lib/logger'
 import { TaskCommentThread } from './TaskCommentThread'
@@ -173,6 +174,8 @@ export function TaskDrawer({
   onChanged,
 }: TaskDrawerProps) {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const router = useRouter()
   const queryClient = useQueryClient()
   const scopeVersion = useOrganizationScopeVersion()
@@ -1054,7 +1057,7 @@ export function TaskDrawer({
             {canSeeMoney && totals.cost !== null ? (
               <Badge variant="info" data-testid="task-drawer-cost">
                 {t('staff.time_tracking.taskDrawer.logged.cost', 'cost {amount}', {
-                  amount: formatCurrency(totals.cost, totals.currencyCode) ?? String(totals.cost),
+                  amount: formatCurrency(totals.cost, totals.currencyCode, locale, displayProfile) ?? String(totals.cost),
                 })}
               </Badge>
             ) : null}

@@ -16,6 +16,26 @@ let mockCustomDefinitions: Array<{
   defaultValue?: string | number | boolean | null
   validation?: Array<{ rule: 'required'; message: string }>
 }> = []
+let mockProfileCurrency = 'USD'
+
+jest.mock('@open-mercato/ui/backend/markets/MarketProfileProvider', () => ({
+  useDisplayProfile: () => ({ currencyCode: mockProfileCurrency }),
+}))
+
+jest.mock('../../hooks/useCurrencyDictionary', () => ({
+  useCurrencyDictionary: () => ({
+    data: {
+      id: 'currency',
+      entries: [
+        { id: 'usd', value: 'USD', label: 'US Dollar' },
+        { id: 'pln', value: 'PLN', label: 'Polish Zloty' },
+      ],
+    },
+    error: null,
+    isLoading: false,
+    refetch: jest.fn(),
+  }),
+}))
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
@@ -91,9 +111,9 @@ jest.mock('../DealDetailsFields', () => {
       errors,
       patch,
     }: {
-      values: { title: string }
+      values: { title: string; valueCurrency: string }
       errors: Record<string, string>
-      patch: (partial: { title: string }) => void
+      patch: (partial: { title?: string; valueCurrency?: string }) => void
     }) =>
       ReactForMock.createElement(
         'label',
@@ -105,6 +125,11 @@ jest.mock('../DealDetailsFields', () => {
           onChange: (event: React.ChangeEvent<HTMLInputElement>) => patch({ title: event.target.value }),
         }),
         errors.title ? ReactForMock.createElement('span', null, errors.title) : null,
+        ReactForMock.createElement('input', {
+          value: values.valueCurrency,
+          'aria-label': 'Deal currency',
+          onChange: (event: React.ChangeEvent<HTMLInputElement>) => patch({ valueCurrency: event.target.value }),
+        }),
       ),
   }
 })
@@ -166,6 +191,7 @@ jest.mock('../DealCustomAttributes', () => {
 
 beforeEach(() => {
   mockCustomDefinitions = []
+  mockProfileCurrency = 'USD'
   mockPush.mockClear()
   mockCreateCrud.mockReset()
   mockCreateCrud.mockResolvedValue({ id: 'deal-1' })
@@ -178,6 +204,25 @@ describe('CreateDealForm', () => {
     render(<CreateDealForm returnTo="/backend/customers/deals" />)
 
     expect(screen.getByLabelText('Deal title')).toHaveValue('')
+  })
+
+  it('applies the supported market currency only to a pristine create', async () => {
+    render(<CreateDealForm returnTo="/backend/customers/deals" />)
+
+    await waitFor(() => expect(screen.getByLabelText('Deal currency')).toHaveValue('USD'))
+    fireEvent.change(screen.getByLabelText('Deal currency'), { target: { value: 'PLN' } })
+    await waitFor(() => expect(screen.getByLabelText('Deal currency')).toHaveValue('PLN'))
+  })
+
+  it('preserves an explicit initial currency instead of applying the market default', async () => {
+    render(
+      <CreateDealForm
+        returnTo="/backend/customers/deals"
+        initialValues={{ valueCurrency: 'PLN' }}
+      />,
+    )
+
+    await waitFor(() => expect(screen.getByLabelText('Deal currency')).toHaveValue('PLN'))
   })
 
   it('prefills initialValues and includes them in the create payload', async () => {

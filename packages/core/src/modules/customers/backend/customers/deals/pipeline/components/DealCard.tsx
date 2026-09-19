@@ -9,8 +9,11 @@ import { IconButton } from '@open-mercato/ui/primitives/icon-button'
 import { SimpleTooltip } from '@open-mercato/ui/primitives/tooltip'
 import type { RowActionItem } from '@open-mercato/ui/backend/RowActions'
 import { DealCardMenu } from './DealCardMenu'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import { translateWithFallback } from '@open-mercato/shared/lib/i18n/translate'
+import { formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 
 export type DealCardPipelineState = {
   openActivitiesCount: number
@@ -96,17 +99,16 @@ function hashAccent(seed: string): string {
   return AVATAR_ACCENT_CLASSES[idx]
 }
 
-function splitCurrencyAmount(amount: number, currency: string | null): { display: string; code: string | null } {
+function splitCurrencyAmount(
+  amount: number,
+  currency: string | null,
+  locale: string,
+  profile: DisplayProfile | null,
+): { display: string; code: string | null } {
   const code = currency && currency.length === 3 ? currency.toUpperCase() : null
-  try {
-    const formatter = new Intl.NumberFormat(undefined, {
-      style: 'decimal',
-      maximumFractionDigits: 0,
-      useGrouping: true,
-    })
-    return { display: formatter.format(amount), code }
-  } catch {
-    return { display: String(Math.round(amount)), code }
+  return {
+    display: formatNumber(amount, profile, { locale, maximumFractionDigits: 0 }) ?? String(Math.round(amount)),
+    code,
   }
 }
 
@@ -145,6 +147,8 @@ function DealCardImpl({
 }: DealCardProps): React.ReactElement {
   const menuItems = React.useMemo(() => buildMenuItems(deal), [buildMenuItems, deal])
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   // useDraggable is significantly cheaper than useSortable: dnd-kit doesn't recompute sibling
   // transforms during a drag. We don't reorder within a lane (sortBy controls order), so we just
   // need a draggable handle that drops into a Lane droppable.
@@ -229,7 +233,7 @@ function DealCardImpl({
 
   const valuePieces =
     deal.valueAmount !== null && Number.isFinite(deal.valueAmount)
-      ? splitCurrencyAmount(deal.valueAmount, deal.valueCurrency)
+      ? splitCurrencyAmount(deal.valueAmount, deal.valueCurrency, locale, displayProfile)
       : null
 
   // Probability pill tone tracks the probability VALUE, not stage state. Figma uses three

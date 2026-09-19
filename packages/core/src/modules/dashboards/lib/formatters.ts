@@ -1,6 +1,10 @@
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
+
 export type FormatCurrencyOptions = {
   currency?: string | null
   locale?: string
+  profile?: DisplayProfile | null
   minimumFractionDigits?: number
   maximumFractionDigits?: number
 }
@@ -8,6 +12,7 @@ export type FormatCurrencyOptions = {
 export type FormatCurrencyCompactOptions = {
   currency?: string | null
   locale?: string
+  profile?: DisplayProfile | null
 }
 
 const CURRENCY_CODE_PATTERN = /^[A-Za-z]{3}$/
@@ -56,19 +61,11 @@ function formatDecimal(
  * guessed one (see #4620) is worse than leaving them unlabelled.
  */
 export function formatCurrency(value: number, options: FormatCurrencyOptions = {}): string {
-  const { currency, locale, minimumFractionDigits = 0, maximumFractionDigits = 0 } = options
+  const { currency, locale, profile, minimumFractionDigits = 0, maximumFractionDigits = 0 } = options
   const code = normalizeCurrencyCode(currency)
-  if (!code) return formatDecimal(value, minimumFractionDigits, maximumFractionDigits, locale)
-  try {
-    return getNumberFormatter(locale, {
-      style: 'currency',
-      currency: code,
-      minimumFractionDigits,
-      maximumFractionDigits,
-    }).format(value)
-  } catch {
-    return `${formatDecimal(value, minimumFractionDigits, maximumFractionDigits, locale)} ${code}`
-  }
+  const formatOptions = { locale, minimumFractionDigits, maximumFractionDigits }
+  if (!code) return formatNumber(value, profile, formatOptions) ?? ''
+  return formatMoney(value, code, profile, formatOptions) ?? ''
 }
 
 export function formatCurrencyWithDecimals(value: number, options: FormatCurrencyOptions = {}): string {
@@ -98,6 +95,17 @@ export function formatCurrencyCompact(
     : (currencyOrOptions ?? {})
   const code = normalizeCurrencyCode(options.currency)
   const compact = Math.abs(value) >= 1_000
+  if (options.profile) {
+    const profileOptions = {
+      locale: options.locale,
+      notation: compact ? 'compact' as const : 'standard' as const,
+      minimumFractionDigits: compact ? 1 : 0,
+      maximumFractionDigits: compact ? 1 : 0,
+    }
+    return code
+      ? (formatMoney(value, code, options.profile, profileOptions) ?? '')
+      : (formatNumber(value, options.profile, profileOptions) ?? '')
+  }
   const formatOptions: Intl.NumberFormatOptions = {
     style: code ? 'currency' : 'decimal',
     notation: compact ? 'compact' : 'standard',
@@ -149,13 +157,14 @@ export function createCurrencyFormatters(
   currency?: string | null,
   fallback = '--',
   locale?: string,
+  profile?: DisplayProfile | null,
 ): CurrencyFormatters {
   const code = normalizeCurrencyCode(currency)
   return {
     currency: code,
-    format: (value: number) => formatCurrency(value, { currency: code, locale }),
-    formatWithDecimals: (value: number) => formatCurrencyWithDecimals(value, { currency: code, locale }),
-    formatCompact: (value: number) => formatCurrencyCompact(value, { currency: code, locale }),
-    formatSafe: (value: unknown) => formatCurrencySafe(value, fallback, { currency: code, locale }),
+    format: (value: number) => formatCurrency(value, { currency: code, locale, profile }),
+    formatWithDecimals: (value: number) => formatCurrencyWithDecimals(value, { currency: code, locale, profile }),
+    formatCompact: (value: number) => formatCurrencyCompact(value, { currency: code, locale, profile }),
+    formatSafe: (value: unknown) => formatCurrencySafe(value, fallback, { currency: code, locale, profile }),
   }
 }

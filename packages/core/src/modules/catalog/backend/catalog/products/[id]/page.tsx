@@ -48,6 +48,8 @@ import {
   useSetCurrentRecordInjectionContext,
 } from "@open-mercato/ui/backend/injection/recordContext";
 import { useT } from "@open-mercato/shared/lib/i18n/context";
+import { formatMoney, formatNumber } from "@open-mercato/shared/lib/display/money";
+import { useDisplayProfile } from "@open-mercato/ui/backend/markets/MarketProfileProvider";
 import { useConfirmDialog } from "@open-mercato/ui/backend/confirm-dialog";
 import { E } from "#generated/entities.ids.generated";
 import {
@@ -2183,6 +2185,7 @@ function ProductVariantsSection({
   onVariantsReload,
 }: ProductVariantsSectionProps) {
   const t = useT();
+  const displayProfile = useDisplayProfile();
   const { confirm, ConfirmDialogElement } = useConfirmDialog();
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [generating, setGenerating] = React.useState(false);
@@ -2278,10 +2281,10 @@ function ProductVariantsSection({
           ? price.amount.trim()
           : "";
       if (!amount) return "—";
-      if (!price.currencyCode) return amount;
-      return `${price.currencyCode.toUpperCase()} ${amount}`;
+      if (!price.currencyCode) return formatNumber(amount, displayProfile) ?? amount;
+      return formatMoney(amount, price.currencyCode, displayProfile) ?? amount;
     },
-    [],
+    [displayProfile],
   );
   const handleDeleteVariant = React.useCallback(
     async (variant: VariantSummary) => {

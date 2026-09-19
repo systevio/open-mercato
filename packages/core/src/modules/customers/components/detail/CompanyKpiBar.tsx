@@ -14,6 +14,7 @@ import {
   clearVersionedPreference,
 } from '@open-mercato/shared/lib/browser/versionedPreference'
 import { isOpenDealStatus, isWonDealStatus } from '../../lib/dealStatus'
+import { groupCurrencySubtotals } from '../../lib/currencySubtotals'
 import type { CompanyCurrencySubtotal, CompanyOverview, DealSummary, InteractionSummary } from '../formConfig'
 import { formatCurrency } from './utils'
 
@@ -109,7 +110,11 @@ export function CompanyKpiBar({ data }: CompanyKpiBarProps) {
 
   const renderCurrencySubtotal = React.useCallback((subtotal: CompanyCurrencySubtotal): string => {
     if (subtotal.invalidAmountCount === subtotal.count) {
-      return t('customers.companies.dashboard.kpi.amountUnavailable', 'Amount unavailable')
+      const denomination = subtotal.currencyCode ?? t(
+        'customers.companies.dashboard.kpi.currencyUnavailable',
+        'Currency unavailable',
+      )
+      return `${denomination} · ${t('customers.companies.dashboard.kpi.amountUnavailable', 'Amount unavailable')}`
     }
     const formatted = subtotal.currencyCode
       ? formatCurrency(subtotal.amount, subtotal.currencyCode, locale, displayProfile)
@@ -127,8 +132,8 @@ export function CompanyKpiBar({ data }: CompanyKpiBarProps) {
   ): MoneyTilePresentation => {
     if (groups === undefined) {
       return {
-        value: null,
-        comparisonLabel: t('customers.companies.dashboard.kpi.totalUnavailable', 'Total unavailable'),
+        value: 0,
+        formatValue: () => t('customers.companies.dashboard.kpi.totalUnavailable', 'Total unavailable'),
       }
     }
     if (groups.length === 0) {
@@ -143,11 +148,9 @@ export function CompanyKpiBar({ data }: CompanyKpiBarProps) {
       const [group] = groups
       const hasValidAmount = group.invalidAmountCount < group.count
       return {
-        value: hasValidAmount ? group.amount : null,
-        formatValue: hasValidAmount ? () => renderCurrencySubtotal(group) : undefined,
-        comparisonLabel: !hasValidAmount
-          ? t('customers.companies.dashboard.kpi.amountUnavailable', 'Amount unavailable')
-          : group.invalidAmountCount > 0
+        value: hasValidAmount ? group.amount : 0,
+        formatValue: () => renderCurrencySubtotal(group),
+        comparisonLabel: hasValidAmount && group.invalidAmountCount > 0
             ? t('customers.companies.dashboard.kpi.incompleteTotal', 'Incomplete total')
             : undefined,
       }
@@ -168,14 +171,27 @@ export function CompanyKpiBar({ data }: CompanyKpiBarProps) {
   }, [displayProfile, locale, renderCurrencySubtotal, t])
 
   const activeMoney = React.useMemo(
-    () => buildMoneyTile(data.kpis?.activeDealsByCurrency, 0),
-    [buildMoneyTile, data.kpis?.activeDealsByCurrency],
+    () => buildMoneyTile(
+      data.kpis?.activeDealsByCurrency ?? groupCurrencySubtotals(activeDeals),
+      0,
+    ),
+    [activeDeals, buildMoneyTile, data.kpis?.activeDealsByCurrency],
   )
   const wonMoney = React.useMemo(
-    () => buildMoneyTile(data.kpis?.wonDealsByCurrency, null),
-    [buildMoneyTile, data.kpis?.wonDealsByCurrency],
+    () => buildMoneyTile(
+      data.kpis?.wonDealsByCurrency ?? groupCurrencySubtotals(data.deals.filter((deal) => isWonDealStatus(deal.status))),
+      null,
+    ),
+    [buildMoneyTile, data.deals, data.kpis?.wonDealsByCurrency],
   )
   const activeDealsCount = data.kpis?.activeDealsCount ?? activeDeals.length
+  const activeDealsCountLabel = t(
+    activeDealsCount === 1
+      ? 'customers.companies.dashboard.kpi.dealCount.one'
+      : 'customers.companies.dashboard.kpi.dealCount.other',
+    activeDealsCount === 1 ? '{{count}} deal' : '{{count}} deals',
+    { count: activeDealsCount },
+  )
 
   const kpiTiles = React.useMemo(() => [
     {
@@ -184,14 +200,13 @@ export function CompanyKpiBar({ data }: CompanyKpiBarProps) {
       value: activeMoney.value,
       trend: dealTrend,
       formatValue: activeMoney.formatValue,
-      comparisonLabel: activeMoney.comparisonLabel ?? t(
-        activeDealsCount === 1
-          ? 'customers.companies.dashboard.kpi.dealCount.one'
-          : 'customers.companies.dashboard.kpi.dealCount.other',
-        activeDealsCount === 1 ? '{{count}} deal' : '{{count}} deals',
-        { count: activeDealsCount },
+      comparisonLabel: activeMoney.comparisonLabel,
+      footer: (
+        <div className="space-y-1">
+          {activeMoney.footer}
+          <p className="text-xs text-muted-foreground">{activeDealsCountLabel}</p>
+        </div>
       ),
-      footer: activeMoney.footer,
     },
     {
       id: 'activities',
@@ -223,7 +238,7 @@ export function CompanyKpiBar({ data }: CompanyKpiBarProps) {
         ? `${data.kpis?.completedDealsCount ?? data.deals.filter((d) => isWonDealStatus(d.status)).length} ${t('customers.companies.dashboard.kpi.completedDeals', 'completed deals')}`
         : t('customers.companies.dashboard.kpi.noInteractions', 'No interactions yet'),
     },
-  ], [t, activeMoney, dealTrend, activeDealsCount, activityTrend, wonMoney, clientTenureYears, data.deals, data.interactions.length, data.kpis])
+  ], [t, activeMoney, activeDealsCountLabel, dealTrend, activityTrend, wonMoney, clientTenureYears, data.deals, data.interactions.length, data.kpis])
 
   const visibleTiles = kpiTiles.filter((tile) => !hiddenTiles.has(tile.id))
 

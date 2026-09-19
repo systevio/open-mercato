@@ -1,3 +1,6 @@
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
+
 /**
  * Format a monetary value with an optional ISO-4217 currency code.
  *
@@ -19,7 +22,16 @@ export function formatCurrency(
   value: string | number | null | undefined,
   currency?: string | null,
   locale?: string,
+  profile?: DisplayProfile | null,
 ): string | null {
+  if (profile) {
+    const code = typeof currency === 'string' && /^[A-Za-z]{3}$/.test(currency.trim())
+      ? currency
+      : null
+    return code
+      ? formatMoney(value, code, profile, { locale })
+      : formatNumber(value, profile, { locale })
+  }
   if (value === null || value === undefined || value === '') return null
   const numeric = typeof value === 'number' ? value : Number(value)
   if (!Number.isFinite(numeric)) {

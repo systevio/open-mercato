@@ -22,7 +22,7 @@ import { StatusBadge } from '@open-mercato/ui/primitives/status-badge'
 import { IconButton } from '@open-mercato/ui/primitives/icon-button'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { formatTime } from '@open-mercato/shared/lib/display/datetime'
-import { formatMoney } from '@open-mercato/shared/lib/display/money'
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
 import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
 import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
@@ -62,6 +62,12 @@ export type EnrichedCompanyData = {
   } | null
   lastContactAt: string | null
   clv: { amount: number; currency: string } | null
+  clvByCurrency?: Array<{
+    currencyCode: string | null
+    amount: number
+    count: number
+    invalidAmountCount: number
+  }>
   status: string | null
   lifecycleStage: string | null
   temperature: string | null
@@ -115,6 +121,19 @@ function formatCurrency(amount: number, currency: string, profile?: DisplayProfi
     notation: amount >= 1_000_000 ? 'compact' : 'standard',
   })
   return rendered ?? `${amount} ${currency}`
+}
+
+function formatClvGroup(
+  group: NonNullable<EnrichedCompanyData['clvByCurrency']>[number],
+  profile: DisplayProfile | null,
+  unavailableLabel: string,
+): string {
+  const denomination = group.currencyCode ?? unavailableLabel
+  if (group.invalidAmountCount === group.count) return `${denomination} · ${unavailableLabel}`
+  const amount = group.currencyCode
+    ? formatCurrency(group.amount, group.currencyCode, profile)
+    : formatNumber(group.amount, profile, { maximumFractionDigits: 0 }) ?? String(group.amount)
+  return group.currencyCode ? amount : `${denomination}: ${amount}`
 }
 
 function ColorBadge({
@@ -225,6 +244,13 @@ export function CompanyCard({
   const t = useT()
   const displayProfile = useDisplayProfile()
   const resolvedUnlinkLabel = unlinkLabel ?? t('customers.people.detail.companies.unlinkAction', 'Unlink')
+  const clvGroups = data.clvByCurrency ?? (data.clv
+    ? [{ currencyCode: data.clv.currency, amount: data.clv.amount, count: 1, invalidAmountCount: 0 }]
+    : [])
+  const currencyUnavailableLabel = t(
+    'customers.companies.dashboard.kpi.currencyUnavailable',
+    'Currency unavailable',
+  )
 
   const hasBillingSection =
     data.profile?.legalName ||
@@ -382,10 +408,16 @@ export function CompanyCard({
               CLV
             </span>
             <span className="flex min-w-0 items-center gap-1 break-words text-xs font-medium text-foreground">
-              {data.clv ? (
+              {clvGroups.length > 0 ? (
                 <>
                   <TrendingUp className="size-3 shrink-0" />
-                  {formatCurrency(data.clv.amount, data.clv.currency, displayProfile)}
+                  <span className="flex flex-col gap-0.5">
+                    {clvGroups.map((group) => (
+                      <span key={group.currencyCode ?? 'unknown'}>
+                        {formatClvGroup(group, displayProfile, currencyUnavailableLabel)}
+                      </span>
+                    ))}
+                  </span>
                 </>
               ) : (
                 '—'

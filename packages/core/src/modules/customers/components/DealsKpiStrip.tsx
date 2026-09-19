@@ -11,6 +11,9 @@ import { Button } from '@open-mercato/ui/primitives/button'
 import { Spinner } from '@open-mercato/ui/primitives/spinner'
 import type { DictionaryMap } from '@open-mercato/core/modules/dictionaries/components/dictionaryAppearance'
 import { PipelineStageBar } from './kpi/PipelineStageBar'
+import { formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 
 type DeltaDirection = 'up' | 'down' | 'unchanged'
 
@@ -63,12 +66,12 @@ export type DealsKpiStripProps = {
   onNeedsAttentionClick?: () => void
 }
 
-function createCompactFormatter(locale: string): (value: number) => string {
-  const formatter = new Intl.NumberFormat(locale, {
+function createCompactFormatter(locale: string, profile: DisplayProfile | null): (value: number) => string {
+  return (value: number) => formatNumber(value, profile, {
+    locale,
     notation: 'compact',
     maximumFractionDigits: 1,
-  })
-  return (value: number) => formatter.format(value)
+  }) ?? String(value)
 }
 
 function buildCurrencySuffix(code: string | null, convertedAll: boolean): string {
@@ -135,7 +138,11 @@ export function DealsKpiStrip({
 }: DealsKpiStripProps) {
   const t = useT()
   const locale = useLocale()
-  const formatCompact = React.useMemo(() => createCompactFormatter(locale), [locale])
+  const displayProfile = useDisplayProfile()
+  const formatCompact = React.useMemo(
+    () => createCompactFormatter(locale, displayProfile),
+    [displayProfile, locale],
+  )
   const pluralCat = React.useCallback((count: number): string => {
     try {
       return new Intl.PluralRules(locale).select(count)

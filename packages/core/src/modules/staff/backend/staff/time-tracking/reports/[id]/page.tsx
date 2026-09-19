@@ -45,8 +45,9 @@ import { useBackendChrome } from '@open-mercato/ui/backend/BackendChromeProvider
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { formatCurrency } from '@open-mercato/ui/utils/format'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { hasFeature } from '@open-mercato/shared/security/features'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import { createLogger } from '@open-mercato/shared/lib/logger'
 import { ReportSheet } from '../../../../../lib/time-tracking-ui/ReportSheet'
 import { InjectionSpot } from '@open-mercato/ui/backend/injection/InjectionSpot'
@@ -110,6 +111,8 @@ function readErrorMessage(payload: unknown, fallback: string): string {
  * every other detail page in the module already uses.
  */
 export default function TimeTrackingReportDetailPage({ params }: { params?: { id?: string } }) {
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const t = useT()
   const searchParams = useSearchParams()
   const reportId = typeof params?.id === 'string' ? params.id : ''
@@ -200,7 +203,7 @@ export default function TimeTrackingReportDetailPage({ params }: { params?: { id
   const money = React.useCallback(
     (amount: number | null | undefined) => {
       if (amount === null || amount === undefined) return '—'
-      return formatCurrency(amount, sheet?.report.currencyCode ?? undefined) ?? '—'
+      return formatCurrency(amount, sheet?.report.currencyCode ?? undefined, locale, displayProfile) ?? '—'
     },
     [sheet?.report.currencyCode],
   )

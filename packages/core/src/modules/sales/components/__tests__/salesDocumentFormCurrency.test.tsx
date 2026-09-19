@@ -3,11 +3,15 @@
  */
 import * as React from 'react'
 import { render, waitFor } from '@testing-library/react'
+import { US_DISPLAY_TEMPLATE } from '@open-mercato/shared/lib/display/templates'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
 
 jest.setTimeout(20000)
 
 const mockApiCall = jest.fn()
 let capturedInitialValues: Record<string, unknown> | undefined
+let activeProfile: DisplayProfile | null = null
+let currencyEntries: Array<{ value: string; label: string }> = []
 
 jest.mock('../useSalesChannelsEnabled', () => ({
   SALES_CHANNELS_TOGGLE_ID: 'sales_channels_enabled',
@@ -83,7 +87,11 @@ jest.mock('@open-mercato/core/modules/dictionaries/components/DictionaryEntrySel
 }))
 
 jest.mock('@open-mercato/core/modules/customers/components/detail/hooks/useCurrencyDictionary', () => ({
-  useCurrencyDictionary: () => ({ data: { entries: [] }, refetch: jest.fn() }),
+  useCurrencyDictionary: () => ({ data: { entries: currencyEntries }, refetch: jest.fn() }),
+}))
+
+jest.mock('@open-mercato/ui/backend/markets/MarketProfileProvider', () => ({
+  useDisplayProfile: () => activeProfile,
 }))
 
 jest.mock('@open-mercato/core/modules/customers/backend/hooks/useEmailDuplicateCheck', () => ({
@@ -162,6 +170,8 @@ describe('SalesDocumentForm default currency', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     capturedInitialValues = undefined
+    activeProfile = null
+    currencyEntries = []
     mockApiCall.mockImplementation((url: string) => {
       if (typeof url === 'string' && url.includes('/api/catalog/price-kinds')) {
         return Promise.resolve(buildPriceKindResponse('EUR'))
@@ -189,6 +199,28 @@ describe('SalesDocumentForm default currency', () => {
   })
 
   it('uses fetched currency as the form default instead of USD', async () => {
+    render(<SalesDocumentForm onCreated={jest.fn()} initialKind="order" />)
+
+    await waitFor(() => {
+      expect(capturedInitialValues?.currencyCode).toBe('EUR')
+    })
+  })
+
+  it('prefers an available profile currency for a pristine create form', async () => {
+    activeProfile = US_DISPLAY_TEMPLATE
+    currencyEntries = [{ value: 'USD', label: 'US Dollar' }, { value: 'EUR', label: 'Euro' }]
+
+    render(<SalesDocumentForm onCreated={jest.fn()} initialKind="order" />)
+
+    await waitFor(() => {
+      expect(capturedInitialValues?.currencyCode).toBe('USD')
+    })
+  })
+
+  it('keeps the domain fallback when the profile currency is unavailable', async () => {
+    activeProfile = US_DISPLAY_TEMPLATE
+    currencyEntries = [{ value: 'EUR', label: 'Euro' }]
+
     render(<SalesDocumentForm onCreated={jest.fn()} initialKind="order" />)
 
     await waitFor(() => {

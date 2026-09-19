@@ -17,6 +17,8 @@ import { serializeExport, type PreparedExport } from '@open-mercato/shared/lib/c
 import { buildPdf, PDF_CONTENT_TYPE, type PdfLine } from './pdf'
 import { buildXlsx, XLSX_CONTENT_TYPE } from './xlsx'
 import { formatReportMinutes, type ReportGroup, type ReportLine } from './reportTotals'
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
 import type { ReportRow } from './reportRows'
 import {
   getReportExportFormat,
@@ -82,6 +84,7 @@ export type ReportExportInput = {
   totals: { billableMinutes: number; nonbillableMinutes: number; totalAmount: number }
   roundingLabel: string
   labels: ReportExportLabels
+  displayProfile?: DisplayProfile | null
 }
 
 export type SerializedReportExport = {
@@ -90,10 +93,21 @@ export type SerializedReportExport = {
   filename: string
 }
 
-function formatAmount(value: number | null | undefined, currencyCode: string | null): string {
+function formatAmount(
+  value: number | null | undefined,
+  currencyCode: string | null,
+  displayProfile?: DisplayProfile | null,
+): string {
   if (value === null || value === undefined) return '—'
-  const fixed = value.toFixed(2)
-  return currencyCode ? `${fixed} ${currencyCode}` : fixed
+  return (currencyCode
+    ? formatMoney(value, currencyCode, displayProfile, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    : formatNumber(value, displayProfile, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })) ?? String(value)
 }
 
 const COLUMN_LABEL_X = 42
@@ -108,6 +122,7 @@ function pdfLinesForLine(
   isNonBillable: boolean,
   showRates: boolean,
   currencyCode: string | null,
+  displayProfile: DisplayProfile | null | undefined,
   labels: ReportExportLabels,
 ): PdfLine[] {
   const label = line.hasOverride ? `${line.label} (${labels.overrideBadge})` : line.label
@@ -117,13 +132,13 @@ function pdfLinesForLine(
   ]
   if (showRates) {
     cells.push({
-      text: isNonBillable ? '—' : formatAmount(line.rate, null),
+      text: isNonBillable ? '—' : formatAmount(line.rate, null, displayProfile),
       x: COLUMN_RATE_X,
       align: 'right' as const,
     })
   }
   cells.push({
-    text: isNonBillable ? '—' : formatAmount(line.amount, null),
+    text: isNonBillable ? '—' : formatAmount(line.amount, null, displayProfile),
     x: COLUMN_AMOUNT_X,
     align: 'right' as const,
   })
@@ -131,7 +146,7 @@ function pdfLinesForLine(
   return [
     { kind: 'cells', cells },
     ...line.children.flatMap((child) =>
-      pdfLinesForLine(child, depth + 1, isNonBillable, showRates, currencyCode, labels),
+      pdfLinesForLine(child, depth + 1, isNonBillable, showRates, currencyCode, displayProfile, labels),
     ),
   ]
 }
@@ -181,7 +196,7 @@ export function buildReportPdfLines(input: ReportExportInput): PdfLine[] {
         { text: group.label, x: COLUMN_LABEL_X, bold: true },
         { text: formatReportMinutes(group.minutes), x: COLUMN_TIME_X, align: 'right', bold: true },
         {
-          text: formatAmount(isNonBillable ? 0 : group.amount, input.currencyCode),
+          text: formatAmount(isNonBillable ? 0 : group.amount, input.currencyCode, input.displayProfile),
           x: COLUMN_AMOUNT_X,
           align: 'right',
           bold: true,
@@ -191,7 +206,7 @@ export function buildReportPdfLines(input: ReportExportInput): PdfLine[] {
     if (input.showRates && !isNonBillable && group.rate !== null) {
       lines.push({
         kind: 'cells',
-        cells: [{ text: `${formatAmount(group.rate, input.currencyCode)}/h`, x: COLUMN_LABEL_X, muted: true, size: 8 }],
+        cells: [{ text: `${formatAmount(group.rate, input.currencyCode, input.displayProfile)}/h`, x: COLUMN_LABEL_X, muted: true, size: 8 }],
       })
     }
 
@@ -207,7 +222,7 @@ export function buildReportPdfLines(input: ReportExportInput): PdfLine[] {
 
     for (const line of group.lines) {
       lines.push(
-        ...pdfLinesForLine(line, 0, isNonBillable, input.showRates, input.currencyCode, labels),
+        ...pdfLinesForLine(line, 0, isNonBillable, input.showRates, input.currencyCode, input.displayProfile, labels),
       )
     }
     lines.push({ kind: 'space', height: 8 }, { kind: 'rule' })
@@ -219,7 +234,7 @@ export function buildReportPdfLines(input: ReportExportInput): PdfLine[] {
       cells: [
         { text: labels.total, x: COLUMN_LABEL_X, bold: true, size: 11 },
         {
-          text: formatAmount(input.totals.totalAmount, input.currencyCode),
+          text: formatAmount(input.totals.totalAmount, input.currencyCode, input.displayProfile),
           x: COLUMN_AMOUNT_X,
           align: 'right',
           bold: true,

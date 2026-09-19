@@ -6,6 +6,7 @@ import { CrudHttpError } from '@open-mercato/shared/lib/crud/errors'
 import { DocumentTemplate } from '../../../../data/entities'
 import { documentTemplatePreviewSchema } from '../../../../data/validators'
 import { prepareTemplateRender } from '../../../../lib/templateInstantiation'
+import { resolveMarketDisplayProfile } from '../../../../lib/marketProfile'
 import { DOCUMENTS_JSON_BODY_LIMITS } from '../../../../lib/requestBody'
 import {
   handleDocumentsRouteError,
@@ -52,6 +53,10 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       { tenantId: ctx.tenantId, organizationId: ctx.organizationId },
     )
     if (!template) throw new CrudHttpError(404, { error: 'documents.templates.notFound' })
+    const displayProfile = await resolveMarketDisplayProfile(ctx.container, {
+      tenantId: ctx.tenantId,
+      organizationId: ctx.organizationId,
+    })
     const prepared = await prepareTemplateRender({
       request,
       template,
@@ -61,6 +66,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       templateUpdatedAt: input.templateUpdatedAt,
       slots: input.slots,
       userFeatures: ctx.auth.features,
+      displayProfile,
     })
     return NextResponse.json({
       contentHtml: prepared.render.html,

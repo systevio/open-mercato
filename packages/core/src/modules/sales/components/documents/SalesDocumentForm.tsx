@@ -118,7 +118,7 @@ type InboxPreFill = {
 }
 
 type SalesDocumentFormProps = {
-  onCreated: (params: { id: string; kind: DocumentKind }) => void
+  onCreated: (params: { id: string; kind: DocumentKind; currencyCode: string }) => void
   isSubmitting?: boolean
   initialKind?: DocumentKind
   inboxPreFill?: InboxPreFill
@@ -929,19 +929,32 @@ export function SalesDocumentForm({ onCreated, isSubmitting = false, initialKind
 
   const loadDefaultCurrency = React.useCallback(async () => {
     try {
+      let fallbackCurrency = 'USD'
       const call = await apiCall<{ items?: Array<{ currency_code?: string | null }> }>(
         '/api/catalog/price-kinds?isPromotion=false&isActive=true&pageSize=1'
       )
       if (call.ok && Array.isArray(call.result?.items) && call.result.items.length) {
         const code = call.result.items[0]?.currency_code
         if (typeof code === 'string' && code.trim().length) {
-          setDefaultCurrency(code.trim().toUpperCase())
+          fallbackCurrency = code.trim().toUpperCase()
         }
       }
+      const dictionary = currencyDictionary ?? (await refetchCurrencyDictionary())
+      const allowedCurrencies = new Set(
+        (dictionary?.entries ?? [])
+          .map((entry) => entry.value.trim().toUpperCase())
+          .filter((value) => value.length > 0),
+      )
+      const profileCurrency = displayProfile?.currencyCode?.trim().toUpperCase()
+      setDefaultCurrency(
+        profileCurrency && allowedCurrencies.has(profileCurrency)
+          ? profileCurrency
+          : fallbackCurrency,
+      )
     } catch (err) {
       logger.error('sales.documents.loadDefaultCurrency', { err })
     }
-  }, [])
+  }, [currencyDictionary, displayProfile?.currencyCode, refetchCurrencyDictionary])
 
   const loadAddresses = React.useCallback(async (customerId?: string | null): Promise<AddressOption[]> => {
     addressRequestRef.current += 1
@@ -1034,7 +1047,7 @@ export function SalesDocumentForm({ onCreated, isSubmitting = false, initialKind
       }
     }
     return []
-  }, [addressFormat, t])
+  }, [addressFormat, displayProfile, t])
 
   React.useEffect(() => {
     loadCustomers().catch(() => {})
@@ -1064,7 +1077,7 @@ export function SalesDocumentForm({ onCreated, isSubmitting = false, initialKind
         return { ...entry, summary, label }
       }),
     )
-  }, [addressFormat])
+  }, [addressFormat, displayProfile])
 
   React.useEffect(() => {
     let cancelled = false
@@ -1504,13 +1517,17 @@ export function SalesDocumentForm({ onCreated, isSubmitting = false, initialKind
           throw createCrudFormError(t('sales.documents.form.errors.id', 'Document id missing after create.'))
         }
         flash(t('sales.documents.form.success', 'Sales document created.'), 'success')
-        onCreated({ id: newId, kind: documentKind })
+        onCreated({
+          id: newId,
+          kind: documentKind,
+          currencyCode: typeof payload.currencyCode === 'string' ? payload.currencyCode : defaultCurrency,
+        })
       } catch (err) {
         if (err instanceof Error) throw err
         throw createCrudFormError(t('sales.documents.form.errors.submit', 'Failed to create document.'))
       }
     },
-    [onCreated, t],
+    [defaultCurrency, onCreated, t],
   )
 
   const cancelHref = initialKind === 'order' ? '/backend/sales/orders' : '/backend/sales/quotes'

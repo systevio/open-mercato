@@ -22,9 +22,10 @@ import { Badge } from '@open-mercato/ui/primitives/badge'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { formatCurrency } from '@open-mercato/ui/utils/format'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { hasFeature } from '@open-mercato/shared/security/features'
 import { useBackendChrome } from '@open-mercato/ui/backend/BackendChromeProvider'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { createLogger } from '@open-mercato/shared/lib/logger'
 import { readCustomerName } from '../../../../lib/timesheets-reports/reportSheetData'
@@ -71,6 +72,8 @@ function toRow(raw: Record<string, unknown>): ReportRow | null {
 
 export default function TimeTrackingReportsPage() {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const router = useRouter()
   const searchParams = useSearchParams()
   const scopeVersion = useOrganizationScopeVersion()
@@ -190,7 +193,7 @@ export default function TimeTrackingReportsPage() {
           <span className="font-mono text-sm tabular-nums">
             {row.original.totalAmount === null
               ? '—'
-              : (formatCurrency(row.original.totalAmount, row.original.currencyCode ?? undefined) ?? '—')}
+              : (formatCurrency(row.original.totalAmount, row.original.currencyCode ?? undefined, locale, displayProfile) ?? '—')}
           </span>
         ),
       })

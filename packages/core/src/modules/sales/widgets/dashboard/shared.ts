@@ -1,5 +1,7 @@
 import type React from 'react'
 import { toDateInputValue as toDateInputValueOrNull } from '@open-mercato/shared/lib/date/format'
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
 
 export function readString(value: unknown): string | null {
   return typeof value === 'string' ? value : null
@@ -16,24 +18,24 @@ export function openNativeDatePicker(event: React.SyntheticEvent<HTMLInputElemen
   }
 }
 
-export function formatAmount(value: string, currency: string | null, locale?: string): string {
+export function formatAmount(
+  value: string,
+  currency: string | null,
+  locale?: string,
+  profile?: DisplayProfile | null,
+): string {
   const numeric = Number(value)
   if (!Number.isFinite(numeric)) return '--'
-  try {
-    if (currency && currency.trim().length > 0) {
-      return new Intl.NumberFormat(locale ?? undefined, {
-        style: 'currency',
-        currency,
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(numeric)
-    }
-    return new Intl.NumberFormat(locale ?? undefined, {
-      style: 'decimal',
-      minimumFractionDigits: 0,
+  if (currency && currency.trim().length > 0) {
+    return formatMoney(numeric, currency, profile, {
+      locale,
+      minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(numeric)
-  } catch {
-    return String(numeric)
+    }) ?? '--'
   }
+  return formatNumber(numeric, profile, {
+    locale,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }) ?? '--'
 }

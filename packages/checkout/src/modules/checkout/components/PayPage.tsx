@@ -34,11 +34,13 @@ import {
 } from '@open-mercato/ui/primitives/select'
 import { Spinner } from '@open-mercato/ui/primitives/spinner'
 import { Textarea } from '@open-mercato/ui/primitives/textarea'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import {
   getCheckoutCustomerFieldSemanticType,
   validateCheckoutCustomerData,
 } from '../lib/customerDataValidation'
 import { createLogger } from '@open-mercato/shared/lib/logger'
+import { formatCheckoutMoney } from '../lib/displayMoney'
 
 const logger = createLogger('checkout').child({ component: 'PayPage' })
 
@@ -1470,6 +1472,7 @@ export function PayPage({
   const searchParams = useSearchParams()
   const t = useT()
   const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const prefersDark = usePrefersDarkMode()
 
   const routeSlug = typeof params?.slug === 'string' ? params.slug : ''
@@ -1539,22 +1542,8 @@ export function PayPage({
   }, [payload])
 
   const formatAmount = React.useCallback((value: number | null | undefined, currencyCode?: string | null) => {
-    const normalizedValue = typeof value === 'number' && Number.isFinite(value) ? value : 0
-    if (currencyCode) {
-      try {
-        return new Intl.NumberFormat(locale, {
-          style: 'currency',
-          currency: currencyCode,
-        }).format(normalizedValue)
-      } catch {
-        return `${normalizedValue.toFixed(2)} ${currencyCode}`
-      }
-    }
-    return new Intl.NumberFormat(locale, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(normalizedValue)
-  }, [locale])
+    return formatCheckoutMoney(value, currencyCode, displayProfile, locale)
+  }, [displayProfile, locale])
 
   const isPreview = payload?.preview === true || previewRequested
   const selectedPriceItem = payload?.priceListItems?.find((item) => item.id === selectedPriceItemId) ?? null

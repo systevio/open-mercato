@@ -51,8 +51,9 @@ import {
 import { extensionSpotChildId } from '@open-mercato/shared/modules/widgets/extension-points'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { formatCurrency } from '@open-mercato/ui/utils/format'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { hasFeature } from '@open-mercato/shared/security/features'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { createLogger } from '@open-mercato/shared/lib/logger'
 import { DurationInput } from './DurationInput'
@@ -318,6 +319,8 @@ function DefaultTimeEntryDialog({
   onShowEntry,
 }: TimeEntryDialogProps): React.ReactElement {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const scopeVersion = useOrganizationScopeVersion()
   const { payload } = useBackendChrome()
   const { confirm, ConfirmDialogElement } = useConfirmDialog()
@@ -1345,10 +1348,10 @@ function DefaultTimeEntryDialog({
     return tagIds.map((id) => byId.get(id) ?? { id, label: id, color: null })
   }, [tagIds, tagOptions])
 
-  const rateLabel = rate !== null ? formatCurrency(rate, currencyCode) ?? String(rate) : null
+  const rateLabel = rate !== null ? formatCurrency(rate, currencyCode, locale, displayProfile) ?? String(rate) : null
   const projectRateLabel =
     project?.hourlyRate !== null && project?.hourlyRate !== undefined
-      ? formatCurrency(project.hourlyRate, currencyCode) ?? String(project.hourlyRate)
+      ? formatCurrency(project.hourlyRate, currencyCode, locale, displayProfile) ?? String(project.hourlyRate)
       : null
 
   const body = (() => {
@@ -1683,7 +1686,7 @@ function DefaultTimeEntryDialog({
                   id="entry-dialog-cost"
                   readOnly
                   disabled
-                  value={cost === null ? '' : formatCurrency(cost, currencyCode) ?? String(cost)}
+                  value={cost === null ? '' : formatCurrency(cost, currencyCode, locale, displayProfile) ?? String(cost)}
                   inputClassName="font-mono tabular-nums"
                   data-testid="entry-dialog-cost"
                 />

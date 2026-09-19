@@ -8,6 +8,8 @@ import { cn } from '@open-mercato/shared/lib/utils'
 import { formatRelativeTime } from '@open-mercato/shared/lib/time'
 import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import type { NotificationRendererProps } from '@open-mercato/shared/modules/notifications/types'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
+import { formatCheckoutMoney } from '../../lib/displayMoney'
 
 export function CheckoutTransactionCompletedRenderer({
   notification,
@@ -17,12 +19,14 @@ export function CheckoutTransactionCompletedRenderer({
 }: NotificationRendererProps) {
   const t = useT()
   const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const router = useRouter()
   const [executing, setExecuting] = React.useState(false)
   const isUnread = notification.status === 'unread'
 
   const amount = notification.bodyVariables?.amount ?? ''
   const currency = notification.bodyVariables?.currency ?? ''
+  const formattedAmount = amount ? formatCheckoutMoney(amount, currency, displayProfile, locale) : ''
   const viewAction = actions.find((action) => action.id === 'view') ?? actions[0] ?? null
 
   const handleView = async () => {
@@ -75,7 +79,7 @@ export function CheckoutTransactionCompletedRenderer({
           </div>
           {amount ? (
             <div className="mt-1 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">{amount} {currency}</span>
+              <span className="font-medium text-foreground">{formattedAmount}</span>
             </div>
           ) : null}
           <div className="mt-3 flex gap-2">

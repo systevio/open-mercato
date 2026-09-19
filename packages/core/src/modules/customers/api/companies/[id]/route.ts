@@ -61,7 +61,6 @@ import {
 import { createLogger } from '@open-mercato/shared/lib/logger'
 import {
   groupCurrencySubtotals,
-  parseMoneyAmount,
   type CurrencySubtotal,
 } from '../../../lib/currencySubtotals'
 
@@ -84,6 +83,7 @@ const COMPANY_DETAIL_CACHE_TTL_MS = 60_000
 // invalidateCrudCache does (camelCase split + lowercase) so the tag shapes match.
 const COMPANY_DETAIL_CACHE_RESOURCE_KINDS = [
   'customers.company',
+  'customers.deal',
   'customers.address',
   'customers.tagAssignment',
   'customers.labelAssignment',
@@ -776,7 +776,8 @@ export async function GET(_req: Request, ctx: { params?: { id?: string } }) {
           !!deal &&
           typeof deal !== 'string' &&
           deal.tenantId === company.tenantId &&
-          deal.organizationId === company.organizationId,
+          deal.organizationId === company.organizationId &&
+          deal.deletedAt === null,
       )
   }
 
@@ -799,7 +800,8 @@ export async function GET(_req: Request, ctx: { params?: { id?: string } }) {
             !!deal &&
             typeof deal !== 'string' &&
             deal.tenantId === company.tenantId &&
-            deal.organizationId === company.organizationId,
+            deal.organizationId === company.organizationId &&
+            deal.deletedAt === null,
         )
 
   const peopleUnionScope = {
@@ -934,9 +936,15 @@ export async function GET(_req: Request, ctx: { params?: { id?: string } }) {
   )
   const activeDeals = dealLinksForMetrics.filter((deal) => isOpenDealStatus(deal.status))
   const wonDeals = dealLinksForMetrics.filter((deal) => isWonDealStatus(deal.status))
-  const activeDealsValue = activeDeals.reduce((sum, deal) => sum + (parseMoneyAmount(deal.valueAmount) ?? 0), 0)
-  const ltvValue = wonDeals.length
-    ? wonDeals.reduce((sum, deal) => sum + (parseMoneyAmount(deal.valueAmount) ?? 0), 0)
+  const activeDealsByCurrency = groupCurrencySubtotals(activeDeals)
+  const wonDealsByCurrency = groupCurrencySubtotals(wonDeals)
+  const activeScalarGroup = activeDealsByCurrency.length === 1 ? activeDealsByCurrency[0] : null
+  const wonScalarGroup = wonDealsByCurrency.length === 1 ? wonDealsByCurrency[0] : null
+  const activeDealsValue = activeScalarGroup && activeScalarGroup.invalidAmountCount < activeScalarGroup.count
+    ? activeScalarGroup.amount
+    : null
+  const ltvValue = wonScalarGroup && wonScalarGroup.invalidAmountCount < wonScalarGroup.count
+    ? wonScalarGroup.amount
     : null
   const earliestInteractionTime = kpiInteractionRows.reduce<number | null>((earliest, interaction) => {
     const candidate = interaction.occurredAt ?? interaction.scheduledAt ?? interaction.createdAt
@@ -947,16 +955,13 @@ export async function GET(_req: Request, ctx: { params?: { id?: string } }) {
   }, null)
   const companyKpis: CompanyDetailKpiSummary = {
     activeDealsCount: activeDeals.length,
-    activeDealsValue: activeDeals.length ? activeDealsValue : null,
-    dealCurrency:
-      activeDeals[0]?.valueCurrency ??
-      dealLinksForMetrics[0]?.valueCurrency ??
-      null,
-    activeDealsByCurrency: groupCurrencySubtotals(activeDeals),
+    activeDealsValue,
+    dealCurrency: activeScalarGroup?.currencyCode ?? null,
+    activeDealsByCurrency,
     activityCount,
     activityTrend,
     ltvValue,
-    wonDealsByCurrency: groupCurrencySubtotals(wonDeals),
+    wonDealsByCurrency,
     completedDealsCount: wonDeals.length,
     clientTenureYears:
       earliestInteractionTime === null

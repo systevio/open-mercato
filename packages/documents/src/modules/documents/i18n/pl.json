@@ -208,6 +208,8 @@
   "documents.entityFields.status": "Status",
   "documents.entityFields.subtitle": "Podtytuł",
   "documents.entityFields.title": "Tytuł",
+  "documents.entityFields.formattedTotal": "Sformatowana suma",
+  "documents.entityFields.formattedValue": "Sformatowana wartość",
   "documents.entityFields.total": "Suma",
   "documents.entityFields.value": "Wartość",
   "documents.entityFields.valueCurrency": "Waluta",

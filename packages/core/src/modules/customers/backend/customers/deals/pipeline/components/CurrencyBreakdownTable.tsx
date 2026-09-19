@@ -2,11 +2,13 @@
 
 import * as React from 'react'
 import { AlertTriangle } from 'lucide-react'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import { translateWithFallback } from '@open-mercato/shared/lib/i18n/translate'
+import { formatNumber } from '@open-mercato/shared/lib/display/money'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 
 export type CurrencyBreakdownRow = {
-  currency: string
+  currency: string | null
   total: number
   count: number
 }
@@ -36,6 +38,8 @@ export function CurrencyBreakdownTable({
   missingRateCurrencies,
 }: CurrencyBreakdownTableProps): React.ReactElement {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const base = baseCurrencyCode?.toUpperCase() ?? null
 
   return (
@@ -60,12 +64,12 @@ export function CurrencyBreakdownTable({
 
       <ul className="flex flex-col">
         {rows.map((row) => {
-          const code = row.currency.toUpperCase()
+          const code = row.currency?.toUpperCase() ?? null
           const isBase = base !== null && code === base
-          const isMissingRate = missingRateCurrencies.includes(row.currency)
+          const isMissingRate = row.currency !== null && missingRateCurrencies.includes(row.currency)
           return (
             <li
-              key={row.currency}
+              key={row.currency ?? 'unknown'}
               className="flex items-center gap-1 border-b border-border py-2.5 last:border-b-0"
             >
               <span className="flex items-center gap-1.5 text-sm font-semibold leading-normal text-foreground">
@@ -75,7 +79,13 @@ export function CurrencyBreakdownTable({
                     aria-hidden="true"
                   />
                 ) : null}
-                <span>{code}</span>
+                <span>
+                  {code ?? translateWithFallback(
+                    t,
+                    'customers.deals.kanban.currencyBreakdown.currencyUnavailable',
+                    'Currency unavailable',
+                  )}
+                </span>
                 {isBase ? (
                   // text-[9px] is an intentional Figma exception for the BASE badge (node 1251:671).
                   // See CurrencyFilterPopover for the same rationale — both share the badge.
@@ -86,7 +96,10 @@ export function CurrencyBreakdownTable({
               </span>
               <span className="flex-1" aria-hidden="true" />
               <span className="text-sm font-semibold leading-normal text-foreground tabular-nums">
-                {formatAmount(row.total)}
+                {formatNumber(row.total, displayProfile, {
+                  locale,
+                  maximumFractionDigits: 0,
+                }) ?? String(Math.round(row.total))}
               </span>
               <span className="pl-6 text-sm font-normal leading-normal text-muted-foreground tabular-nums">
                 {row.count}
@@ -97,14 +110,6 @@ export function CurrencyBreakdownTable({
       </ul>
     </div>
   )
-}
-
-function formatAmount(amount: number): string {
-  return new Intl.NumberFormat(undefined, {
-    style: 'decimal',
-    maximumFractionDigits: 0,
-    useGrouping: true,
-  }).format(Math.round(amount))
 }
 
 export default CurrencyBreakdownTable

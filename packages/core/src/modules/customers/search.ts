@@ -10,6 +10,9 @@ import type { TranslateFn } from '@open-mercato/shared/lib/i18n/context'
 import { resolveTranslations } from '@open-mercato/shared/lib/i18n/server'
 import { CUSTOMER_INTERACTION_TASK_SOURCE, EXAMPLE_TODO_SOURCE } from './lib/interactionCompatibility'
 import { createLogger } from '@open-mercato/shared/lib/logger'
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
+import { resolveDisplayProfileForScope } from '@open-mercato/core/modules/markets/lib/request-profile'
 
 const logger = createLogger('customers')
 
@@ -374,11 +377,35 @@ function buildCustomerUrl(kind: string | null | undefined, id?: string | null): 
   return `/backend/customers/companies-v2/${encoded}`
 }
 
-function formatDealValue(record: Record<string, unknown>): string | undefined {
+function formatDealValue(
+  record: Record<string, unknown>,
+  profile: DisplayProfile | null,
+  currencyUnavailableLabel: string,
+): string | undefined {
   const amount = record.value_amount ?? record.valueAmount
   if (!amount) return undefined
-  const currency = record.value_currency ?? record.valueCurrency ?? ''
-  return currency ? `${amount} ${currency}` : String(amount)
+  const currency = record.value_currency ?? record.valueCurrency
+  const code = typeof currency === 'string' && /^[A-Za-z]{3}$/.test(currency.trim())
+    ? currency.trim().toUpperCase()
+    : null
+  const formatted = code
+    ? formatMoney(String(amount), code, profile)
+    : formatNumber(String(amount), profile)
+  if (!formatted) return undefined
+  return code ? formatted : `${formatted} · ${currencyUnavailableLabel}`
+}
+
+function isResolverContainer(value: unknown): value is { resolve<T>(name: string): T } {
+  return typeof value === 'object' && value !== null && 'resolve' in value &&
+    typeof (value as { resolve?: unknown }).resolve === 'function'
+}
+
+async function resolveSearchDisplayProfile(ctx: SearchContext): Promise<DisplayProfile | null> {
+  if (!isResolverContainer(ctx.container)) return null
+  return resolveDisplayProfileForScope(ctx.container, {
+    tenantId: ctx.tenantId,
+    organizationId: ctx.organizationId,
+  })
 }
 
 function snippet(text: unknown, max = 140): string | undefined {
@@ -896,6 +923,7 @@ export const searchConfig: SearchModuleConfig = {
       priority: 8,
 
       buildSource: async (ctx: SearchBuildContext): Promise<SearchIndexSource | null> => {
+        assertTenantContext(ctx)
         const { t } = await resolveTranslations()
         const lines: string[] = []
         const record = ctx.record
@@ -903,7 +931,12 @@ export const searchConfig: SearchModuleConfig = {
         appendLine(lines, 'Stage', record.pipeline_stage)
         appendLine(lines, 'Status', record.status)
         appendLine(lines, 'Source', record.source)
-        const value = formatDealValue(record)
+        const displayProfile = await resolveSearchDisplayProfile(ctx)
+        const value = formatDealValue(
+          record,
+          displayProfile,
+          t('customers.companies.dashboard.kpi.currencyUnavailable', 'Currency unavailable'),
+        )
         if (value) appendLine(lines, 'Value', value)
         if (!lines.length) return null
 
@@ -930,17 +963,20 @@ export const searchConfig: SearchModuleConfig = {
       },
 
       formatResult: async (ctx: SearchBuildContext): Promise<SearchResultPresenter | null> => {
+        assertTenantContext(ctx)
         const { t } = await resolveTranslations()
         const { record } = ctx
         const title = pickString(record.title as string, t('customers.search.fallback.deal', 'Deal'))
         const subtitleParts: string[] = []
         if (record.pipeline_stage) subtitleParts.push(String(record.pipeline_stage))
         if (record.status) subtitleParts.push(String(record.status))
-        const amount = record.value_amount ?? record.valueAmount
-        const currency = record.value_currency ?? record.valueCurrency
-        if (amount) {
-          subtitleParts.push(currency ? `${amount} ${currency}` : String(amount))
-        }
+        const displayProfile = await resolveSearchDisplayProfile(ctx)
+        const value = formatDealValue(
+          record,
+          displayProfile,
+          t('customers.companies.dashboard.kpi.currencyUnavailable', 'Currency unavailable'),
+        )
+        if (value) subtitleParts.push(value)
 
         return {
           title: title ?? t('customers.search.fallback.deal', 'Deal'),

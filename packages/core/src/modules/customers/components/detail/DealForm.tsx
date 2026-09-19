@@ -23,6 +23,7 @@ import { collectCustomFieldValues } from '@open-mercato/ui/backend/utils/customF
 import { useCurrencyDictionary } from './hooks/useCurrencyDictionary'
 import { DictionaryEntrySelect } from '@open-mercato/core/modules/dictionaries/components/DictionaryEntrySelect'
 import { normalizeCustomFieldSubmitValue } from './customFieldUtils'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 
 export type DealFormBaseValues = {
   title: string
@@ -768,6 +769,7 @@ export function DealForm({
   optimisticLockUpdatedAt,
 }: DealFormProps) {
   const t = useT()
+  const displayProfile = useDisplayProfile()
   const [pending, setPending] = React.useState(false)
   const {
     data: currencyDictionaryData,
@@ -1136,7 +1138,15 @@ export function DealForm({
       pipelineId: initialValues?.pipelineId ?? (typeof (initialValues as Record<string, unknown>)?.pipeline_id === 'string' ? (initialValues as Record<string, unknown>).pipeline_id as string : ''),
       pipelineStageId: initialValues?.pipelineStageId ?? (typeof (initialValues as Record<string, unknown>)?.pipeline_stage_id === 'string' ? (initialValues as Record<string, unknown>).pipeline_stage_id as string : ''),
       valueAmount: normalizeNumber(initialValues?.valueAmount ?? null),
-      valueCurrency: normalizeCurrency(initialValues?.valueCurrency ?? null),
+      valueCurrency: normalizeCurrency(
+        initialValues?.valueCurrency ?? (
+          mode === 'create' && currencyDictionaryData?.entries.some(
+            (entry) => entry.value === displayProfile?.currencyCode?.trim().toUpperCase(),
+          )
+            ? displayProfile?.currencyCode
+            : null
+        ),
+      ),
       probability: normalizeNumber(initialValues?.probability ?? null),
       expectedCloseAt: toDateInputValue(initialValues?.expectedCloseAt ?? null),
       description: initialValues?.description ?? '',
@@ -1148,7 +1158,7 @@ export function DealForm({
           .map(([key, value]) => [key, value]),
       ),
     }
-  }, [initialValues])
+  }, [currencyDictionaryData, displayProfile?.currencyCode, initialValues, mode])
 
   const handleSubmit = React.useCallback(
     async (values: Record<string, unknown>) => {
