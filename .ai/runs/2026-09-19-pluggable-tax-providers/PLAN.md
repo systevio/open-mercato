@@ -6,15 +6,16 @@
 **Source spec:** .ai/specs/2026-09-19-pluggable-tax-providers.md
 **Spec PR:** #3 (design only; this run ships the implementation on its own PR)
 **Engine:** om-auto-create-pr-loop (steps: 36, --loop: no — routed by the step threshold)
+**Scope amendment (2026-09-19, owner):** MVP scope is Phases 1, 2, 3, 4 and 6 in that order. Phase 5 (commit/adjust/void lifecycle) is deferred by the owner and is NOT implemented in this run — Steps 5.1 to 5.5 carry `Status: deferred` and are skipped by the resume engine. The optional `commit`, `adjust`, `void` methods and the `capabilities` block stay in the `TaxProvider` type (they landed in Step 1.1) so a package written against this contract needs no change when Phase 5 ships. Implementable Steps in this run: 31.
 
 ## Tasks
 
-> Authoritative status table. `Status` is one of `todo` or `done`. On landing a Step, flip `Status` to `done` and fill the `Commit` column with the short SHA. The first row whose `Status` is not `done` is the resume point for `om-auto-continue-pr-loop`. Step ids and `Exec` cells are immutable once the plan is committed — per-Step commits touch only `Status` and `Commit`.
+> Authoritative status table. `Status` is one of `todo`, `done` or `deferred`. On landing a Step, flip `Status` to `done` and fill the `Commit` column with the short SHA. The first row whose `Status` is `todo` is the resume point for `om-auto-continue-pr-loop`; a `deferred` row is skipped and never implemented. Step ids and `Exec` cells are immutable once the plan is committed — per-Step commits touch only `Status` and `Commit`.
 
 | Phase | Step | Title | Exec | Status | Commit |
 |-------|------|-------|------|--------|--------|
 | 1 | 1.1 | Tax provider contract types | inline | done | 39c60ccc2 |
-| 1 | 1.2 | Tax provider registry | inline | done | pending |
+| 1 | 1.2 | Tax provider registry | inline | done | ed37ac8a9 |
 | 1 | 1.3 | TaxInfo and result schemas | inline | todo | — |
 | 1 | 1.4 | Tax document context assembly | inline | todo | — |
 | 1 | 1.5 | Built in table-rates and fixed-rate providers | inline | todo | — |
@@ -40,11 +41,11 @@
 | 4 | 4.2 | Customer exemption validators, commands and forms | inline | todo | — |
 | 4 | 4.3 | Exemption facts into the customer snapshot and the contract | inline | todo | — |
 | 4 | 4.4 | Customer exemption tests | inline | todo | — |
-| 5 | 5.1 | Tax transaction lifecycle events | inline | todo | — |
-| 5 | 5.2 | Emit lifecycle requests from document transitions | inline | todo | — |
-| 5 | 5.3 | Lifecycle subscriber and record command | inline | todo | — |
-| 5 | 5.4 | Transaction state on the document detail page | inline | todo | — |
-| 5 | 5.5 | Lifecycle tests | inline | todo | — |
+| 5 | 5.1 | Tax transaction lifecycle events | inline | deferred | deferred by the owner |
+| 5 | 5.2 | Emit lifecycle requests from document transitions | inline | deferred | deferred by the owner |
+| 5 | 5.3 | Lifecycle subscriber and record command | inline | deferred | deferred by the owner |
+| 5 | 5.4 | Transaction state on the document detail page | inline | deferred | deferred by the owner |
+| 5 | 5.5 | Lifecycle tests | inline | deferred | deferred by the owner |
 | 6 | 6.1 | User guide and pricing override docs | inline | todo | — |
 | 6 | 6.2 | Provider docs and the package building guide | inline | todo | — |
 | 6 | 6.3 | Sales module framework docs | inline | todo | — |
