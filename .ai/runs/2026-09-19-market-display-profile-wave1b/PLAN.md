@@ -9,12 +9,12 @@
 
 ## Tasks
 
-> Authoritative status table. `Status` is one of `todo` or `done`. On landing a Step, flip `Status` to `done` and fill the `Commit` column with the short SHA. The first row whose `Status` is not `done` is the resume point for `om-auto-continue-pr-loop`. Step ids and `Exec` cells are immutable once the plan is committed - per-Step commits touch only `Status` and `Commit`.
+> Authoritative status table. `Status` is one of `todo` or `done`. On landing a Step, flip `Status` to `done` and fill the `Commit` column with the short SHA. The first row whose `Status` is not `done` is the resume point for `om-auto-continue-pr-loop`. Step ids and `Exec` cells are immutable once the plan is committed - per-Step commits touch only `Status` and `Commit`. A Step's own commit flips its `Status`; its `Commit` cell is filled by the next commit, because a SHA cannot be written into the commit that produces it.
 
 | Phase | Step | Title | Exec | Status | Commit |
 |-------|------|-------|------|--------|--------|
-| 2 | 2.2a | Address layer: the `packages/ui` detail twins render from the descriptor | inline | done | 1a3c3bdcc |
-| 2 | 2.2b | Address layer: the `customers` twins render from the descriptor | inline | todo | — |
+| 2 | 2.2a | Address layer: the `packages/ui` detail twins render from the descriptor | inline | done | 0e94e1179 |
+| 2 | 2.2b | Address layer: the `customers` twins render from the descriptor | inline | done | — |
 | 2 | 2.3 | Customers surfaces: people, companies, deals, detail cards, phone in `formConfig` | inline | todo | — |
 | 2 | 2.4 | CRM calendar: `range.ts`, `MonthGrid`, `AgendaList`, conflicts route | inline | todo | — |
 | 2 | 2.6a | Sales documents: money and dates through the helpers | inline | todo | — |
