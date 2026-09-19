@@ -10398,16 +10398,20 @@ const deleteCreditMemoCommand: CommandHandler<
  *
  * Status guards that forbid edits do not apply, because nothing a guard protects
  * changes — only the tax amounts and the five provenance columns.
+ *
+ * Its only caller, POST /api/sales/documents/recalculate-tax, passes the
+ * validated fields as the command input itself, the way every other custom
+ * sales route does. Reading them from an `input.body` wrapper instead made both
+ * hooks see `undefined` and answered every click of the button with a 400.
  */
 const recalculateDocumentTaxCommand: CommandHandler<
-  { body?: Record<string, unknown>; query?: Record<string, unknown> },
+  { documentId?: unknown; documentKind?: unknown },
   { documentId: string; documentKind: SalesDocumentKind; taxStatus: string | null; taxCalculatedAt: string | null }
 > = {
   id: "sales.documents.recalculate_tax",
   async prepare(input, ctx) {
-    const raw = (input?.body as Record<string, unknown> | undefined) ?? {};
-    const documentId = typeof raw.documentId === "string" ? raw.documentId : null;
-    const documentKind = typeof raw.documentKind === "string" ? raw.documentKind : null;
+    const documentId = typeof input?.documentId === "string" ? input.documentId : null;
+    const documentKind = typeof input?.documentKind === "string" ? input.documentKind : null;
     if (!documentId || (documentKind !== "order" && documentKind !== "quote")) return {};
     const em = ctx.container.resolve("em") as EntityManager;
     if (documentKind === "order") {
@@ -10420,9 +10424,7 @@ const recalculateDocumentTaxCommand: CommandHandler<
     return snapshot ? { before: snapshot } : {};
   },
   async execute(input, ctx) {
-    const parsed = recalculateDocumentTaxSchema.parse(
-      (input?.body as Record<string, unknown> | undefined) ?? {},
-    );
+    const parsed = recalculateDocumentTaxSchema.parse(input ?? {});
     const em = (ctx.container.resolve("em") as EntityManager).fork();
     const salesCalculationService =
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
