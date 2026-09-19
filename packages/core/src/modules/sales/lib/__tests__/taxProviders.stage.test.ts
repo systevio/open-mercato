@@ -417,6 +417,59 @@ describe('tax stage', () => {
     expect(info.totals.exemptTotal).toBeCloseTo(info.totals.taxableTotal, 4)
   })
 
+  it('emits sales.tax.calculation.failed for every fallback', async () => {
+    const emitted: Array<{ id: string; payload: Record<string, unknown> }> = []
+    const eventBus = {
+      emitEvent: async (id: string, payload: Record<string, unknown>) => {
+        emitted.push({ id, payload })
+      },
+    }
+    registerSpyProvider('event-boom', () => {
+      throw new Error('vendor exploded')
+    })
+    await calculateDocumentTotals({
+      documentKind: 'order',
+      lines: defaultLines,
+      adjustments: [],
+      context: {
+        ...baseContext,
+        metadata: {
+          tax: makeTaxContext({
+            selection: { providerKey: 'event-boom', settings: {}, integrationId: null, integrationEnabled: true },
+          }),
+        },
+      },
+      eventBus: eventBus as never,
+    })
+    const failed = emitted.find((entry) => entry.id === 'sales.tax.calculation.failed')
+    expect(failed).toBeDefined()
+    expect(failed!.payload).toMatchObject({
+      documentKind: 'order',
+      documentId: 'order-1',
+      organizationId: 'org-1',
+      tenantId: 'tenant-1',
+      providerKey: 'event-boom',
+      code: 'provider_error',
+    })
+  })
+
+  it('emits no failure event when the calculation succeeds', async () => {
+    const emitted: string[] = []
+    const eventBus = {
+      emitEvent: async (id: string) => {
+        emitted.push(id)
+      },
+    }
+    await calculateDocumentTotals({
+      documentKind: 'order',
+      lines: defaultLines,
+      adjustments: [],
+      context: { ...baseContext, metadata: { tax: makeTaxContext() } },
+      eventBus: eventBus as never,
+    })
+    expect(emitted).not.toContain('sales.tax.calculation.failed')
+  })
+
   it('keeps the persisted document free of addresses and customer identity', async () => {
     const result = await calculate({
       tax: makeTaxContext({

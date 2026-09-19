@@ -1,5 +1,6 @@
 import type { EventBus } from '@open-mercato/events'
 import { createLogger } from '@open-mercato/shared/lib/logger'
+import { getTelemetryRuntime } from '@open-mercato/shared/lib/telemetry/runtime'
 import { rebuildDocumentResult, round } from '../calculations'
 import type {
   SalesAdjustmentDraft,
@@ -20,6 +21,45 @@ import type {
 } from './types'
 
 const logger = createLogger('sales')
+
+/** Named so every fallback groups under one fingerprint in the error reporter. */
+class TaxProviderFailedError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'TaxProviderFailedError'
+  }
+}
+
+/**
+ * A decline is an expected outcome — "not my jurisdiction" — so it is not
+ * reported as an error. Everything else is a real incident an operator wants to
+ * see, even though the write itself succeeded.
+ */
+function reportTaxProviderFailure(params: {
+  failure: NonNullable<TaxInfo['failure']>
+  documentKind: SalesDocumentKind
+  documentId: string | null
+  organizationId: string
+  tenantId: string
+}): void {
+  if (params.failure.code === 'unsupported') return
+  try {
+    getTelemetryRuntime()?.reportError(new TaxProviderFailedError(params.failure.message), {
+      module: 'sales',
+      code: 'sales.tax_provider_failed',
+      attributes: {
+        providerKey: params.failure.providerKey,
+        failureCode: params.failure.code,
+        documentKind: params.documentKind,
+        documentId: params.documentId ?? undefined,
+        organizationId: params.organizationId,
+        tenantId: params.tenantId,
+      },
+    })
+  } catch {
+    // Error reporting must never be the reason a document write fails.
+  }
+}
 
 /**
  * Half a hundredth of a minor unit: the widest divergence between the
@@ -471,6 +511,30 @@ export async function runTaxStage(params: {
   })
 
   document = withTaxMetadata(document, info)
+
+  if (failure) {
+    reportTaxProviderFailure({
+      failure,
+      documentKind,
+      documentId: tax.document.id,
+      organizationId: context.organizationId,
+      tenantId: context.tenantId,
+    })
+    if (eventBus) {
+      // Emitted for every fallback, including a decline: a merchant may well
+      // want to know that their engine is declining documents.
+      await eventBus.emitEvent('sales.tax.calculation.failed', {
+        id: tax.document.id ?? `${documentKind}:unsaved`,
+        documentKind,
+        documentId: tax.document.id,
+        organizationId: context.organizationId,
+        tenantId: context.tenantId,
+        providerKey: failure.providerKey,
+        code: failure.code,
+        message: failure.message,
+      })
+    }
+  }
 
   if (eventBus) {
     let nextDocument = document

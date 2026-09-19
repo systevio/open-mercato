@@ -30,6 +30,23 @@ const totalsCalculatedPayloadSchema: EventPayloadSchema = {
   ],
 }
 
+/**
+ * Payload emitted by the tax stage whenever a calculation degrades to the
+ * default provider's amounts. Fields mirror the emit call exactly.
+ */
+const taxCalculationFailedPayloadSchema: EventPayloadSchema = {
+  fields: [
+    { path: 'id', type: 'text' },
+    { path: 'documentKind', type: 'text' },
+    { path: 'documentId', type: 'text', optional: true },
+    { path: 'organizationId', type: 'text' },
+    { path: 'tenantId', type: 'text' },
+    { path: 'providerKey', type: 'text' },
+    { path: 'code', type: 'text' },
+    { path: 'message', type: 'text' },
+  ],
+}
+
 const events = [
   // Orders
   { id: 'sales.order.created', label: 'Sales Order Created', entity: 'order', category: 'crud' },
@@ -108,6 +125,10 @@ const events = [
   // Lifecycle events - Tax provider stage
   { id: 'sales.tax.adjustments.apply.before', label: 'Before Tax Provider Stage', category: 'lifecycle', excludeFromTriggers: true },
   { id: 'sales.tax.adjustments.apply.after', label: 'After Tax Provider Stage', category: 'lifecycle', excludeFromTriggers: true },
+  // Triggerable on purpose: a merchant should be able to route a provider
+  // outage into a workflow or a notification rather than discovering it on an
+  // invoice.
+  { id: 'sales.tax.calculation.failed', label: 'Tax Calculation Failed', category: 'lifecycle', payloadSchema: taxCalculationFailedPayloadSchema },
 ] as const
 
 export const eventsConfig = createModuleEvents({
