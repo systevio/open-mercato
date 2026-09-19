@@ -17,6 +17,7 @@ import { cloneJson, deriveLineNetFromGross, ensureOrganizationScope, ensureSameS
 import { resolveRedoSnapshot } from '@open-mercato/shared/lib/commands/redo'
 import { SalesOrder, SalesOrderAdjustment, SalesOrderLine, SalesReturn, SalesReturnLine } from '../data/entities'
 import { mapOrderLineEntityToSnapshot } from '../lib/lineSnapshots'
+import { resolveTaxDocumentContext } from '../lib/providers/taxContext'
 import { loadShippedQuantityByLine } from '../lib/shipments/snapshots'
 import { computeAvailableReturnQuantity } from '../lib/returnQuantity'
 import {
@@ -153,7 +154,34 @@ function mapOrderAdjustmentToDraft(adjustment: SalesOrderAdjustment): SalesAdjus
   }
 }
 
-function buildCalculationContext(order: SalesOrder) {
+/**
+ * Two of the four return recalculations run inside an open transaction, so the
+ * tax context assembly here must stay query free on the default path. It is:
+ * `resolveTaxDocumentContext` reads the catalog only for a provider that
+ * actually consumes product facts, and the built in default does not.
+ */
+async function buildCalculationContext(
+  em: EntityManager,
+  order: SalesOrder,
+  lines: SalesLineSnapshot[],
+) {
+  const tax = await resolveTaxDocumentContext({
+    em,
+    organizationId: order.organizationId,
+    tenantId: order.tenantId,
+    documentKind: 'order',
+    documentId: order.id,
+    documentNumber: order.orderNumber,
+    documentDate: order.placedAt ?? order.createdAt ?? null,
+    channelId: order.channelId ?? null,
+    customerSnapshot: order.customerSnapshot ?? null,
+    billingAddressSnapshot: order.billingAddressSnapshot ?? null,
+    shippingAddressSnapshot: order.shippingAddressSnapshot ?? null,
+    lines: lines.map((line) => ({
+      productId: line.productId ?? null,
+      productVariantId: line.productVariantId ?? null,
+    })),
+  })
   return {
     tenantId: order.tenantId,
     organizationId: order.organizationId,
@@ -163,6 +191,7 @@ function buildCalculationContext(order: SalesOrder) {
         ? cloneJson(order.shippingMethodSnapshot as Record<string, unknown>)
         : null,
       paymentMethod: order.paymentMethodSnapshot ? cloneJson(order.paymentMethodSnapshot as Record<string, unknown>) : null,
+      tax,
     },
   }
 }
@@ -204,7 +233,7 @@ export async function recalculateOrderTotalsForDisplay(
     documentKind: 'order',
     lines: lineSnapshots,
     adjustments: adjustmentDrafts,
-    context: buildCalculationContext(order),
+    context: await buildCalculationContext(em, order, lineSnapshots),
     existingTotals: resolveExistingPaymentTotals(order),
   })
   return calculation.totals
@@ -389,7 +418,7 @@ async function reverseReturnEffects(
           documentKind: 'order',
           lines: lineSnapshots,
           adjustments: adjustmentDrafts,
-          context: buildCalculationContext(order),
+          context: await buildCalculationContext(em, order, lineSnapshots),
           existingTotals: resolveExistingPaymentTotals(order),
         })
         applyOrderTotals(order, calculation.totals, calculation.lines.length)
@@ -539,7 +568,7 @@ async function restoreReturnEffects(
           documentKind: 'order',
           lines: lineSnapshots,
           adjustments: adjustmentDrafts,
-          context: buildCalculationContext(order),
+          context: await buildCalculationContext(em, order, lineSnapshots),
           existingTotals: resolveExistingPaymentTotals(order),
         })
         applyOrderTotals(order, calculation.totals, calculation.lines.length)
@@ -725,7 +754,7 @@ const createReturnCommand: CommandHandler<ReturnCreateInput, { returnId: string 
         documentKind: 'order',
         lines: lineSnapshots,
         adjustments: adjustmentDrafts,
-        context: buildCalculationContext(order),
+        context: await buildCalculationContext(em, order, lineSnapshots),
         existingTotals: resolveExistingPaymentTotals(order),
       })
       applyOrderTotals(order, calculation.totals, calculation.lines.length)

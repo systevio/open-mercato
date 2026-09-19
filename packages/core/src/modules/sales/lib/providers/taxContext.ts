@@ -43,6 +43,12 @@ export type ResolveTaxDocumentContextParams = {
   lines?: TaxContextLineInput[]
   totalsMode?: 'computed' | 'external'
   metadata?: Record<string, unknown> | null
+  /**
+   * Whether to read the catalog tax facts. Defaults to false for the built in
+   * `table-rates` provider, which works purely off the figures the engine
+   * already computed — so the common path adds no query to any document write.
+   */
+  loadProductFacts?: boolean
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -249,12 +255,12 @@ export async function resolveTaxDocumentContext(
   params: ResolveTaxDocumentContextParams
 ): Promise<TaxDocumentContext> {
   const lines = params.lines ?? []
-  const productFacts = await loadProductFacts(
-    params.em,
-    params.organizationId,
-    params.tenantId,
-    lines
-  )
+  const selection = resolveSelection()
+  const wantsProductFacts =
+    params.loadProductFacts ?? selection.providerKey !== DEFAULT_TAX_PROVIDER_KEY
+  const productFacts = wantsProductFacts
+    ? await loadProductFacts(params.em, params.organizationId, params.tenantId, lines)
+    : {}
 
   return {
     document: {
@@ -273,7 +279,7 @@ export async function resolveTaxDocumentContext(
       billTo: toTaxAddress(params.billingAddressSnapshot),
     },
     productFacts,
-    selection: resolveSelection(),
+    selection,
     // A closure, so credentials survive the hook and vanish in JSON.stringify.
     resolveCredentials: async () => ({}),
     timeoutMs: resolveDefaultTaxProviderTimeout(),

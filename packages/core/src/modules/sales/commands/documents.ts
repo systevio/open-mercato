@@ -122,7 +122,9 @@ import type { TaxCalculationService } from "../services/taxCalculationService";
 import type {
   PaymentMethodContext,
   ShippingMethodContext,
+  TaxDocumentContext,
 } from "../lib/providers";
+import { resolveTaxDocumentContext } from "../lib/providers/taxContext";
 import {
   type SalesLineSnapshot,
   type SalesLineUomSnapshot,
@@ -2959,21 +2961,96 @@ function buildCalculationContext(params: {
   paymentMethodId?: string | null;
   shippingMethodCode?: string | null;
   paymentMethodCode?: string | null;
+  /**
+   * Required on purpose: a recalculation site that forgets the tax block would
+   * silently skip the tax stage and store no provenance, so the omission is a
+   * type error rather than a missing column at runtime.
+   */
+  tax: TaxDocumentContext;
 }) {
   return {
     tenantId: params.tenantId,
     organizationId: params.organizationId,
     currencyCode: params.currencyCode,
-    metadata: buildProviderContext({
-      shippingSnapshot: params.shippingSnapshot,
-      paymentSnapshot: params.paymentSnapshot,
-      shippingMethodId: params.shippingMethodId,
-      paymentMethodId: params.paymentMethodId,
-      shippingMethodCode: params.shippingMethodCode,
-      paymentMethodCode: params.paymentMethodCode,
-      currencyCode: params.currencyCode,
-    }),
+    metadata: {
+      ...buildProviderContext({
+        shippingSnapshot: params.shippingSnapshot,
+        paymentSnapshot: params.paymentSnapshot,
+        shippingMethodId: params.shippingMethodId,
+        paymentMethodId: params.paymentMethodId,
+        shippingMethodCode: params.shippingMethodCode,
+        paymentMethodCode: params.paymentMethodCode,
+        currencyCode: params.currencyCode,
+      }),
+      tax: params.tax,
+    },
   };
+}
+
+/**
+ * Everything a recalculation site holds: a persisted quote or order, its line
+ * snapshots, and the entity manager. Every one of the eighteen sites builds its
+ * context through here, so the tax context is assembled exactly once per
+ * recalculation and always before the write transaction opens.
+ */
+type TaxDocumentSource = {
+  id?: string | null;
+  organizationId: string;
+  tenantId: string;
+  currencyCode: string;
+  channelId?: string | null;
+  customerSnapshot?: Record<string, unknown> | null;
+  billingAddressSnapshot?: Record<string, unknown> | null;
+  shippingAddressSnapshot?: Record<string, unknown> | null;
+  shippingMethodSnapshot?: Record<string, unknown> | null;
+  paymentMethodSnapshot?: Record<string, unknown> | null;
+  shippingMethodId?: string | null;
+  paymentMethodId?: string | null;
+  shippingMethodCode?: string | null;
+  paymentMethodCode?: string | null;
+  orderNumber?: string | null;
+  quoteNumber?: string | null;
+  placedAt?: Date | null;
+  validFrom?: Date | null;
+  createdAt?: Date | null;
+};
+
+async function resolveDocumentCalculationContext(params: {
+  em: EntityManager;
+  documentKind: SalesDocumentKind;
+  document: TaxDocumentSource;
+  lines: SalesLineSnapshot[];
+}) {
+  const { document } = params;
+  const tax = await resolveTaxDocumentContext({
+    em: params.em,
+    organizationId: document.organizationId,
+    tenantId: document.tenantId,
+    documentKind: params.documentKind,
+    documentId: document.id ?? null,
+    documentNumber: document.orderNumber ?? document.quoteNumber ?? null,
+    documentDate: document.placedAt ?? document.validFrom ?? document.createdAt ?? null,
+    channelId: document.channelId ?? null,
+    customerSnapshot: document.customerSnapshot ?? null,
+    billingAddressSnapshot: document.billingAddressSnapshot ?? null,
+    shippingAddressSnapshot: document.shippingAddressSnapshot ?? null,
+    lines: params.lines.map((line) => ({
+      productId: line.productId ?? null,
+      productVariantId: line.productVariantId ?? null,
+    })),
+  });
+  return buildCalculationContext({
+    tenantId: document.tenantId,
+    organizationId: document.organizationId,
+    currencyCode: document.currencyCode,
+    shippingSnapshot: document.shippingMethodSnapshot ?? null,
+    paymentSnapshot: document.paymentMethodSnapshot ?? null,
+    shippingMethodId: document.shippingMethodId ?? null,
+    paymentMethodId: document.paymentMethodId ?? null,
+    shippingMethodCode: document.shippingMethodCode ?? null,
+    paymentMethodCode: document.paymentMethodCode ?? null,
+    tax,
+  });
 }
 
 function mapOrderAdjustmentToDraft(
@@ -4918,16 +4995,11 @@ const createQuoteCommand: CommandHandler<
 
     const salesCalculationService =
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
-    const calculationContext = buildCalculationContext({
-      tenantId: quote.tenantId,
-      organizationId: quote.organizationId,
-      currencyCode: quote.currencyCode,
-      shippingSnapshot: quote.shippingMethodSnapshot,
-      paymentSnapshot: quote.paymentMethodSnapshot,
-      shippingMethodId: quote.shippingMethodId ?? null,
-      paymentMethodId: quote.paymentMethodId ?? null,
-      shippingMethodCode: quote.shippingMethodCode ?? null,
-      paymentMethodCode: quote.paymentMethodCode ?? null,
+    const calculationContext = await resolveDocumentCalculationContext({
+      em,
+      documentKind: "quote",
+      document: quote,
+      lines: lineSnapshots,
     });
     const calculation = await salesCalculationService.calculateDocumentTotals({
       documentKind: "quote",
@@ -5336,16 +5408,11 @@ const updateQuoteCommand: CommandHandler<
               ctx.container.resolve<SalesCalculationService>(
                 "salesCalculationService",
               );
-            const calculationContext = buildCalculationContext({
-              tenantId: quote.tenantId,
-              organizationId: quote.organizationId,
-              currencyCode: quote.currencyCode,
-              shippingSnapshot: quote.shippingMethodSnapshot,
-              paymentSnapshot: quote.paymentMethodSnapshot,
-              shippingMethodId: quote.shippingMethodId ?? null,
-              paymentMethodId: quote.paymentMethodId ?? null,
-              shippingMethodCode: quote.shippingMethodCode ?? null,
-              paymentMethodCode: quote.paymentMethodCode ?? null,
+            const calculationContext = await resolveDocumentCalculationContext({
+              em,
+              documentKind: "quote",
+              document: quote,
+              lines: calcLines,
             });
             const calculation =
               await salesCalculationService.calculateDocumentTotals({
@@ -5602,16 +5669,11 @@ const updateOrderCommand: CommandHandler<
               ctx.container.resolve<SalesCalculationService>(
                 "salesCalculationService",
               );
-            const calculationContext = buildCalculationContext({
-              tenantId: order.tenantId,
-              organizationId: order.organizationId,
-              currencyCode: order.currencyCode,
-              shippingSnapshot: order.shippingMethodSnapshot,
-              paymentSnapshot: order.paymentMethodSnapshot,
-              shippingMethodId: order.shippingMethodId ?? null,
-              paymentMethodId: order.paymentMethodId ?? null,
-              shippingMethodCode: order.shippingMethodCode ?? null,
-              paymentMethodCode: order.paymentMethodCode ?? null,
+            const calculationContext = await resolveDocumentCalculationContext({
+              em,
+              documentKind: "order",
+              document: order,
+              lines: calcLines,
             });
             const calculation =
               await salesCalculationService.calculateDocumentTotals({
@@ -5992,16 +6054,11 @@ const createOrderCommand: CommandHandler<
 
     const salesCalculationService =
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
-    const calculationContext = buildCalculationContext({
-      tenantId: order.tenantId,
-      organizationId: order.organizationId,
-      currencyCode: order.currencyCode,
-      shippingSnapshot: order.shippingMethodSnapshot,
-      paymentSnapshot: order.paymentMethodSnapshot,
-      shippingMethodId: order.shippingMethodId ?? null,
-      paymentMethodId: order.paymentMethodId ?? null,
-      shippingMethodCode: order.shippingMethodCode ?? null,
-      paymentMethodCode: order.paymentMethodCode ?? null,
+    const calculationContext = await resolveDocumentCalculationContext({
+      em,
+      documentKind: "order",
+      document: order,
+      lines: lineSnapshots,
     });
     const calculation = await salesCalculationService.calculateDocumentTotals({
       documentKind: "order",
@@ -7346,16 +7403,11 @@ const orderLineUpsertCommand: CommandHandler<
     const adjustmentDrafts = adjustments.map(mapOrderAdjustmentToDraft);
     const salesCalculationService =
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
-    const calculationContext = buildCalculationContext({
-      tenantId: order.tenantId,
-      organizationId: order.organizationId,
-      currencyCode: order.currencyCode,
-      shippingSnapshot: order.shippingMethodSnapshot,
-      paymentSnapshot: order.paymentMethodSnapshot,
-      shippingMethodId: order.shippingMethodId ?? null,
-      paymentMethodId: order.paymentMethodId ?? null,
-      shippingMethodCode: order.shippingMethodCode ?? null,
-      paymentMethodCode: order.paymentMethodCode ?? null,
+    const calculationContext = await resolveDocumentCalculationContext({
+      em,
+      documentKind: "order",
+      document: order,
+      lines: calcLines,
     });
     const calculation = await salesCalculationService.calculateDocumentTotals({
       documentKind: "order",
@@ -7528,16 +7580,11 @@ const orderLineDeleteCommand: CommandHandler<
     const adjustmentDrafts = adjustments.map(mapOrderAdjustmentToDraft);
     const salesCalculationService =
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
-    const calculationContext = buildCalculationContext({
-      tenantId: order.tenantId,
-      organizationId: order.organizationId,
-      currencyCode: order.currencyCode,
-      shippingSnapshot: order.shippingMethodSnapshot,
-      paymentSnapshot: order.paymentMethodSnapshot,
-      shippingMethodId: order.shippingMethodId ?? null,
-      paymentMethodId: order.paymentMethodId ?? null,
-      shippingMethodCode: order.shippingMethodCode ?? null,
-      paymentMethodCode: order.paymentMethodCode ?? null,
+    const calculationContext = await resolveDocumentCalculationContext({
+      em,
+      documentKind: "order",
+      document: order,
+      lines: calcLines,
     });
     const calculation = await salesCalculationService.calculateDocumentTotals({
       documentKind: "order",
@@ -7844,16 +7891,11 @@ const quoteLineUpsertCommand: CommandHandler<
     const adjustmentDrafts = adjustments.map(mapQuoteAdjustmentToDraft);
     const salesCalculationService =
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
-    const calculationContext = buildCalculationContext({
-      tenantId: quote.tenantId,
-      organizationId: quote.organizationId,
-      currencyCode: quote.currencyCode,
-      shippingSnapshot: quote.shippingMethodSnapshot,
-      paymentSnapshot: quote.paymentMethodSnapshot,
-      shippingMethodId: quote.shippingMethodId ?? null,
-      paymentMethodId: quote.paymentMethodId ?? null,
-      shippingMethodCode: quote.shippingMethodCode ?? null,
-      paymentMethodCode: quote.paymentMethodCode ?? null,
+    const calculationContext = await resolveDocumentCalculationContext({
+      em,
+      documentKind: "quote",
+      document: quote,
+      lines: calcLines,
     });
     const calculation = await salesCalculationService.calculateDocumentTotals({
       documentKind: "quote",
@@ -7998,16 +8040,11 @@ const quoteLineDeleteCommand: CommandHandler<
     const adjustmentDrafts = adjustments.map(mapQuoteAdjustmentToDraft);
     const salesCalculationService =
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
-    const calculationContext = buildCalculationContext({
-      tenantId: quote.tenantId,
-      organizationId: quote.organizationId,
-      currencyCode: quote.currencyCode,
-      shippingSnapshot: quote.shippingMethodSnapshot,
-      paymentSnapshot: quote.paymentMethodSnapshot,
-      shippingMethodId: quote.shippingMethodId ?? null,
-      paymentMethodId: quote.paymentMethodId ?? null,
-      shippingMethodCode: quote.shippingMethodCode ?? null,
-      paymentMethodCode: quote.paymentMethodCode ?? null,
+    const calculationContext = await resolveDocumentCalculationContext({
+      em,
+      documentKind: "quote",
+      document: quote,
+      lines: calcLines,
     });
     const calculation = await salesCalculationService.calculateDocumentTotals({
       documentKind: "quote",
@@ -8221,16 +8258,11 @@ const orderAdjustmentUpsertCommand: CommandHandler<
     );
     const salesCalculationService =
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
-    const calculationContext = buildCalculationContext({
-      tenantId: order.tenantId,
-      organizationId: order.organizationId,
-      currencyCode: order.currencyCode,
-      shippingSnapshot: order.shippingMethodSnapshot,
-      paymentSnapshot: order.paymentMethodSnapshot,
-      shippingMethodId: order.shippingMethodId ?? null,
-      paymentMethodId: order.paymentMethodId ?? null,
-      shippingMethodCode: order.shippingMethodCode ?? null,
-      paymentMethodCode: order.paymentMethodCode ?? null,
+    const calculationContext = await resolveDocumentCalculationContext({
+      em,
+      documentKind: "order",
+      document: order,
+      lines: calcLines,
     });
     const effectiveAdjustment = nextAdjustments.find(
       (adj) => adj.id === adjustmentId,
@@ -8444,16 +8476,11 @@ const orderAdjustmentDeleteCommand: CommandHandler<
     const adjustmentDrafts = filtered.map(mapOrderAdjustmentToDraft);
     const salesCalculationService =
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
-    const calculationContext = buildCalculationContext({
-      tenantId: order.tenantId,
-      organizationId: order.organizationId,
-      currencyCode: order.currencyCode,
-      shippingSnapshot: order.shippingMethodSnapshot,
-      paymentSnapshot: order.paymentMethodSnapshot,
-      shippingMethodId: order.shippingMethodId ?? null,
-      paymentMethodId: order.paymentMethodId ?? null,
-      shippingMethodCode: order.shippingMethodCode ?? null,
-      paymentMethodCode: order.paymentMethodCode ?? null,
+    const calculationContext = await resolveDocumentCalculationContext({
+      em,
+      documentKind: "order",
+      document: order,
+      lines: calcLines,
     });
     const calculation = await salesCalculationService.calculateDocumentTotals({
       documentKind: "order",
@@ -8680,16 +8707,11 @@ const quoteAdjustmentUpsertCommand: CommandHandler<
     );
     const salesCalculationService =
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
-    const calculationContext = buildCalculationContext({
-      tenantId: quote.tenantId,
-      organizationId: quote.organizationId,
-      currencyCode: quote.currencyCode,
-      shippingSnapshot: quote.shippingMethodSnapshot,
-      paymentSnapshot: quote.paymentMethodSnapshot,
-      shippingMethodId: quote.shippingMethodId ?? null,
-      paymentMethodId: quote.paymentMethodId ?? null,
-      shippingMethodCode: quote.shippingMethodCode ?? null,
-      paymentMethodCode: quote.paymentMethodCode ?? null,
+    const calculationContext = await resolveDocumentCalculationContext({
+      em,
+      documentKind: "quote",
+      document: quote,
+      lines: calcLines,
     });
     const effectiveAdjustment = nextAdjustments.find(
       (adj) => adj.id === adjustmentId,
@@ -8901,16 +8923,11 @@ const quoteAdjustmentDeleteCommand: CommandHandler<
     const adjustmentDrafts = filtered.map(mapQuoteAdjustmentToDraft);
     const salesCalculationService =
       ctx.container.resolve<SalesCalculationService>("salesCalculationService");
-    const calculationContext = buildCalculationContext({
-      tenantId: quote.tenantId,
-      organizationId: quote.organizationId,
-      currencyCode: quote.currencyCode,
-      shippingSnapshot: quote.shippingMethodSnapshot,
-      paymentSnapshot: quote.paymentMethodSnapshot,
-      shippingMethodId: quote.shippingMethodId ?? null,
-      paymentMethodId: quote.paymentMethodId ?? null,
-      shippingMethodCode: quote.shippingMethodCode ?? null,
-      paymentMethodCode: quote.paymentMethodCode ?? null,
+    const calculationContext = await resolveDocumentCalculationContext({
+      em,
+      documentKind: "quote",
+      document: quote,
+      lines: calcLines,
     });
     const calculation = await salesCalculationService.calculateDocumentTotals({
       documentKind: "quote",

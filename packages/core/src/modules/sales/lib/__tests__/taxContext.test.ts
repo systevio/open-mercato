@@ -153,6 +153,7 @@ describe('resolveTaxDocumentContext', () => {
     const context = await resolveTaxDocumentContext({
       em,
       ...baseParams,
+      loadProductFacts: true,
       lines: [
         { productId: 'prod-1' },
         { productId: 'prod-2' },
@@ -180,6 +181,7 @@ describe('resolveTaxDocumentContext', () => {
     const context = await resolveTaxDocumentContext({
       em,
       ...baseParams,
+      loadProductFacts: true,
       lines: [
         {
           productId: 'prod-1',
@@ -225,6 +227,7 @@ describe('resolveTaxDocumentContext', () => {
     const context = await resolveTaxDocumentContext({
       em,
       ...baseParams,
+      loadProductFacts: true,
       lines: [{ productId: 'prod-1', productVariantId: 'var-1' }],
     })
     expect(context.productFacts['var-1']).toEqual({
@@ -235,9 +238,20 @@ describe('resolveTaxDocumentContext', () => {
     })
   })
 
+  it('reads no catalog fact for the built in default provider, which never uses them', async () => {
+    const em = makeEm({ products: [{ id: 'prod-1', sku: 'SKU-1' }] })
+    const context = await resolveTaxDocumentContext({
+      em,
+      ...baseParams,
+      lines: [{ productId: 'prod-1' }],
+    })
+    expect(em.calls).toHaveLength(0)
+    expect(context.productFacts).toEqual({})
+  })
+
   it('makes no catalog query for a document without lines', async () => {
     const em = makeEm()
-    const context = await resolveTaxDocumentContext({ em, ...baseParams })
+    const context = await resolveTaxDocumentContext({ em, ...baseParams, loadProductFacts: true })
     expect(em.calls).toHaveLength(0)
     expect(context.productFacts).toEqual({})
   })
