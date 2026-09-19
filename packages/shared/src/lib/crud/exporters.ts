@@ -72,10 +72,13 @@ function neutralizeSpreadsheetFormula(value: string): string {
 
 function normalizeCsvValue(value: unknown, profile?: DisplayProfile | null): string {
   const normalized = normalizeHumanValue(value, profile)
-  if (typeof value === 'bigint' || typeof value === 'boolean') return normalized
-  // A number formatted for a market can start with a currency symbol or a parenthesis, so it goes
-  // through the formula guard like any other text; an unformatted number never could.
-  if (typeof value === 'number' && !profile) return normalized
+  // Numbers, bigints and booleans skip the formula guard whether or not a market formatted them.
+  // The guard defends against a TEXT cell that a spreadsheet would execute; a value that arrived as
+  // a number is not that, and prefixing it would corrupt every negative amount - a market's minus
+  // style starts with `-`, which the guard's own pattern matches.
+  if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') {
+    return normalized
+  }
   return neutralizeSpreadsheetFormula(normalized)
 }
 

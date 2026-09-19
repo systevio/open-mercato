@@ -56,7 +56,11 @@ describe('market display profile in exports', () => {
       EU_DISPLAY_TEMPLATE,
     ).body
     expect(body).toContain('18.10.2026')
-    expect(body).toContain('-1 234,5')
+    // The whole cell, not a substring: a formatted negative amount must not pick up the
+    // spreadsheet-formula escape, whose pattern matches a leading minus. The cell is quoted
+    // because the market's decimal separator is itself a comma.
+    expect(body).toContain('"-1 234,5"')
+    expect(body).not.toContain("'-")
   })
 
   it('leaves an export without a market exactly where it was', () => {
