@@ -28,7 +28,7 @@
 | 2 | 2.13 | CSV export takes the profile for dates, amounts and negative style | inline | done | d225166a4 |
 | 2 | 2.14 | Portal profile page dates | inline | done | 6b2186c4b |
 | 2 | 2.8-ds-fix | Design-system pass: the price kind warning uses the current Alert API | inline | done | b8f3fe9ad |
-| 2 | 2.13-review-fix | Review fix: a formatted negative amount must not take the CSV formula escape | inline | done | — |
+| 2 | 2.13-review-fix | Review fix: a formatted negative amount must not take the CSV formula escape | inline | done | 240ec857a |
 
 ## Goal
 

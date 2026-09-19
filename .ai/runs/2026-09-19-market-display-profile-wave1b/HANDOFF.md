@@ -1,10 +1,10 @@
 # Handoff — 2026-09-19-market-display-profile-wave1b
 
-**Last updated:** 2026-09-19T16:32:05Z
+**Last updated:** 2026-09-19T16:48:16Z
 **Branch:** feat/market-display-profile-wave1b
 **PR:** https://github.com/systevio/open-mercato/pull/7 (draft)
 **Current phase/step:** complete - all fourteen Steps done
-**Last commit:** b8f3fe9ad — style(catalog): price kind warning uses the current Alert status API
+**Last commit:** 240ec857a — fix(shared): a formatted negative amount keeps its minus in CSV
 
 ## What just happened
 - Every Tasks row is `done`. The final gate is green: the whole `validation.commands` list in order, plus the
@@ -13,6 +13,8 @@
   artifact of where cezar puts temp dirs. Re-run green with `--env-mode=loose`.
 - UI verification was attempted on a fresh slot database and could not complete - the dev server wedges on a route
   compile error this branch does not touch. There are no screenshots; the PR keeps `needs-qa`.
+- The review pass ran and found one more defect in this run's own diff (the CSV formula escape swallowing a negative
+  sign), fixed as Step `2.13-review-fix`. The gate was re-run green after it.
 
 ## Next concrete action
 - Nothing on the implementation. The PR is left as a **draft** deliberately, per the task's instruction that the

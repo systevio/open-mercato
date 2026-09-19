@@ -50,3 +50,15 @@
   Neither failure is attributable to this branch. No screenshots exist; the PR carries `needs-qa`.
 - Decision: the PR is left a **draft** on purpose - the task states the release step of this workflow merges and
   publishes it, which overrides the engine's default ready flip.
+
+## 2026-09-19T16:48:16Z — review pass and run end
+- `om-auto-review-pr 7 --autofix` run. Verdict: approve, posted as a comment because GitHub refuses an approving
+  review from the PR author - a human approval is still outstanding, so the PR stays in `review`, not `merge-queue`.
+- One major defect found in this run's own diff and fixed as Step `2.13-review-fix`: the market-aware CSV export ran
+  formatted numbers through the spreadsheet-formula guard, whose pattern matches a leading minus, so every negative
+  amount exported as `'-1,234.50`. The existing test missed it by asserting a substring the escaped cell contained.
+- Two further no-market rendering changes were found during review and disclosed in the PR body rather than reverted
+  (the sales documents date column and the tax breakdown stamp moving to the `formatDisplayDate*` primitive).
+- Full gate re-run green after the fix: 46 test tasks, typecheck across 38 packages.
+- Run ended. PR #7 left as a draft on purpose; lock released; labels `review feature needs-qa priority-medium
+  risk-medium`.
