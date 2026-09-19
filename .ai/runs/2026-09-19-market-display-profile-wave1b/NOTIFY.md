@@ -36,3 +36,17 @@
 - Decision: Steps 2.8 and 2.10 shipped smaller than the spec implies, for reasons recorded in their commits - the
   catalog tax fields already existed from PR #5, and the WMS warehouse dialog has no address layout to apply.
 - UI verification still deferred to the final gate on `omw up --fresh`, for the reason recorded at checkpoint 1.
+
+## 2026-09-19T16:32:05Z — final gate
+- All fourteen Steps done. `origin/develop` (63bebfea9) merged in.
+- Full `validation.commands` gate green in order, plus the design-system pass (one finding, fixed as `2.8-ds-fix`).
+- Blocker worked around, not hidden: `yarn test` fails the `@open-mercato/cli` suite on this host because `TMPDIR`
+  points inside the repository; re-run green with `TMPDIR` outside and `turbo --env-mode=loose`. The branch contains
+  no commit touching `packages/cli`.
+- Integration suite skipped, reason recorded: no seeded live environment could be brought up on this slot.
+- UI verification attempted on a fresh slot database and abandoned: `omw up --fresh` left `apps/mercato/.env`
+  pointing at the framework default database (fixed by hand, `yarn initialize` then succeeded), but the dev server
+  never finishes compiling `/login` (`ERR_IMPORT_ATTRIBUTE_MISSING` on `language-subtag-registry` under Node 24).
+  Neither failure is attributable to this branch. No screenshots exist; the PR carries `needs-qa`.
+- Decision: the PR is left a **draft** on purpose - the task states the release step of this workflow merges and
+  publishes it, which overrides the engine's default ready flip.

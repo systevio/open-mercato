@@ -1,31 +1,36 @@
 # Handoff — 2026-09-19-market-display-profile-wave1b
 
-**Last updated:** 2026-09-19T15:25:06Z
+**Last updated:** 2026-09-19T16:32:05Z
 **Branch:** feat/market-display-profile-wave1b
 **PR:** https://github.com/systevio/open-mercato/pull/7 (draft)
-**Current phase/step:** Phase 2 Step 2.12
-**Last commit:** c80d7ad7d — feat(shipping_carriers): shipment wizard takes pounds and inches for a US market
+**Current phase/step:** complete - all fourteen Steps done
+**Last commit:** b8f3fe9ad — style(catalog): price kind warning uses the current Alert status API
 
 ## What just happened
-- Checkpoint 2 passed over Steps 2.6b..2.11: repo-wide typecheck (38 packages), the full core (17491 tests), shared
-  (2422) and ui (2170) suites, `yarn generate` with no drift and `yarn i18n:check-sync`.
-- One core test failed and was fixed: a tax-rates assertion was matching the page description rather than a table row,
-  so Step 2.9's rewording exposed it. Recorded in `checkpoint-2-checks.md`.
-- Eleven of fourteen Steps are done; only the PDF paper size, CSV export and portal profile dates remain.
+- Every Tasks row is `done`. The final gate is green: the whole `validation.commands` list in order, plus the
+  design-system pass, with `origin/develop` (`63bebfea9`) merged in.
+- `yarn test` needs `TMPDIR` outside the repository on this host, or the `@open-mercato/cli` suite fails on an
+  artifact of where cezar puts temp dirs. Re-run green with `--env-mode=loose`.
+- UI verification was attempted on a fresh slot database and could not complete - the dev server wedges on a route
+  compile error this branch does not touch. There are no screenshots; the PR keeps `needs-qa`.
 
 ## Next concrete action
-- Start Step 2.12: the documents PDF reads `paperSize(profile)` into the `@page` rule and puppeteer's `format`.
+- Nothing on the implementation. The PR is left as a **draft** deliberately, per the task's instruction that the
+  release step of this workflow merges and publishes it.
+- For whoever picks up QA: the environment needs a working dev server. `apps/mercato/.env` must point at the slot
+  database (`omw`'s initializer does not set it), and the `language-subtag-registry` import-attribute error on
+  `/login` needs resolving independently of this branch.
 
 ## Blockers / open questions
-- none blocking. UI screenshots are deferred to the final gate and need `omw up --fresh` (see Environment caveats).
+- No implementation blockers. One open item for a human: no screenshots exist, so nobody has seen these screens
+  render. The behavior is unit-tested against the US template, the EU template and the no-profile path.
 
 ## Environment caveats
-- Dev runtime runnable: yes. The slot's dev server serves the app on `http://localhost:3005` (the runtime picked that
-  port, not the `PORT=3120` in `.env`; `.ai/qa/test-env.json` still records 3120).
-- Browser / UI checks: skipped so far. The slot is on the **shared instance** database, whose admin credentials this
-  run does not hold, and writing the US profile row needed to demonstrate the change would alter every other slot's
-  rendering. Take `omw up --fresh` at the final gate, seed a US profile there, capture screenshots.
-- Database/migration state: clean. This run adds no migration.
+- Dev runtime runnable: partially. It starts and reports ready, but `/login` never finishes compiling
+  (`ERR_IMPORT_ATTRIBUTE_MISSING` on `language-subtag-registry`). Ports drift from the `PORT` in `.env`.
+- Browser / UI checks: attempted and unable to run. Full account in `final-gate-checks.md`.
+- Database/migration state: this slot now runs its own **fresh** database (`om_task2`, port 5433), not the shared
+  instance. A plain `omw up` would rewrite `.env` back to the shared one. This run adds no migration of its own.
 
 ## Worktree
 - Path: /srv/om/repos/open-mercato/.ai/cezar/worktrees/fac8bef7-a46a-43e6-ad82-2f5281f491d1
