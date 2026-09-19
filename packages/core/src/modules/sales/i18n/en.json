@@ -425,7 +425,7 @@
   "sales.config.taxRates.actions.deleteConfirm": "Delete tax rate \"{{name}}\"?",
   "sales.config.taxRates.actions.edit": "Edit",
   "sales.config.taxRates.actions.refresh": "Refresh",
-  "sales.config.taxRates.description": "Maintain VAT classes applied to catalog pricing.",
+  "sales.config.taxRates.description": "Maintain the tax rates applied to catalog pricing.",
   "sales.config.taxRates.errors.delete": "Failed to delete tax rate.",
   "sales.config.taxRates.errors.load": "Failed to load tax rates.",
   "sales.config.taxRates.errors.save": "Failed to save tax rate.",

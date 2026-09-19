@@ -425,7 +425,7 @@
   "sales.config.taxRates.actions.deleteConfirm": "\"{{name}}\" 세율을 삭제하시겠습니까?",
   "sales.config.taxRates.actions.edit": "수정",
   "sales.config.taxRates.actions.refresh": "새로고침",
-  "sales.config.taxRates.description": "카탈로그 가격에 적용되는 부가세 분류를 관리합니다.",
+  "sales.config.taxRates.description": "카탈로그 가격에 적용되는 세율을 관리합니다.",
   "sales.config.taxRates.errors.delete": "세율 삭제에 실패했습니다.",
   "sales.config.taxRates.errors.load": "세율을 불러오지 못했습니다.",
   "sales.config.taxRates.errors.save": "세율 저장에 실패했습니다.",

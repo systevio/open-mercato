@@ -20,8 +20,8 @@
 | 2 | 2.6a | Sales documents: money and dates through the helpers | inline | done | 71102151b |
 | 2 | 2.6b | Sales documents: the price presentation switch and the tax line | inline | done | 9fd947875 |
 | 2 | 2.7 | Public quote page and quote emails via a server-built preformatted view model | inline | done | 400928046 |
-| 2 | 2.8 | Catalog product forms: single price field, unit placeholders, `tax_code` and `is_taxable` | inline | done | — |
-| 2 | 2.9 | Tax rates wording: "Tax rates" in place of "VAT classes" | inline | todo | — |
+| 2 | 2.8 | Catalog product forms: single price field, unit placeholders, `tax_code` and `is_taxable` | inline | done | b0c13d5d7 |
+| 2 | 2.9 | Tax rates wording: "Tax rates" in place of "VAT classes" | inline | done | — |
 | 2 | 2.10 | Sales channel and WMS warehouse address forms pick up the shared layout | inline | todo | — |
 | 2 | 2.11 | Shipment wizard: `AddressFields` and `PackageEditor` | inline | todo | — |
 | 2 | 2.12 | Documents PDF reads `paperSize(profile)` | inline | todo | — |

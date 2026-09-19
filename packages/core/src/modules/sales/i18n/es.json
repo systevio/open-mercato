@@ -425,7 +425,7 @@
   "sales.config.taxRates.actions.deleteConfirm": "¿Eliminar el tipo \"{{name}}\"?",
   "sales.config.taxRates.actions.edit": "Editar",
   "sales.config.taxRates.actions.refresh": "Actualizar",
-  "sales.config.taxRates.description": "Administra las clases de IVA aplicadas a los precios del catálogo.",
+  "sales.config.taxRates.description": "Administra los tipos de impuestos aplicados a los precios del catálogo.",
   "sales.config.taxRates.errors.delete": "No se pudo eliminar el tipo de impuesto.",
   "sales.config.taxRates.errors.load": "No se pudieron cargar los tipos de impuestos.",
   "sales.config.taxRates.errors.save": "No se pudo guardar el tipo de impuesto.",

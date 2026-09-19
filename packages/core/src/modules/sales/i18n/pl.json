@@ -425,7 +425,7 @@
   "sales.config.taxRates.actions.deleteConfirm": "Usunąć stawkę \"{{name}}\"?",
   "sales.config.taxRates.actions.edit": "Edytuj",
   "sales.config.taxRates.actions.refresh": "Odśwież",
-  "sales.config.taxRates.description": "Zarządzaj klasami VAT używanymi w cenniku katalogu.",
+  "sales.config.taxRates.description": "Zarządzaj stawkami podatkowymi używanymi w cenniku katalogu.",
   "sales.config.taxRates.errors.delete": "Nie udało się usunąć stawki podatkowej.",
   "sales.config.taxRates.errors.load": "Nie udało się wczytać stawek podatkowych.",
   "sales.config.taxRates.errors.save": "Nie udało się zapisać stawki podatkowej.",

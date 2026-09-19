@@ -425,7 +425,7 @@
   "sales.config.taxRates.actions.deleteConfirm": "Steuersatz \"{{name}}\" löschen?",
   "sales.config.taxRates.actions.edit": "Bearbeiten",
   "sales.config.taxRates.actions.refresh": "Aktualisieren",
-  "sales.config.taxRates.description": "Verwalten Sie MwSt.-Klassen für Katalogpreise.",
+  "sales.config.taxRates.description": "Verwalten Sie die Steuersätze für Katalogpreise.",
   "sales.config.taxRates.errors.delete": "Steuersatz konnte nicht gelöscht werden.",
   "sales.config.taxRates.errors.load": "Steuersätze konnten nicht geladen werden.",
   "sales.config.taxRates.errors.save": "Steuersatz konnte nicht gespeichert werden.",
