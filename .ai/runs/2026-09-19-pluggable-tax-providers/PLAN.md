@@ -39,7 +39,7 @@
 | 3 | 3.7 | Acceptance tests 2 to 5 | inline | done | — |
 | 4 | 4.1 | Customer tax exemption columns | inline | done | — |
 | 4 | 4.2 | Customer exemption validators, commands and forms | inline | done | — |
-| 4 | 4.3 | Exemption facts into the customer snapshot and the contract | inline | todo | — |
+| 4 | 4.3 | Exemption facts into the customer snapshot and the contract | inline | done | — |
 | 4 | 4.4 | Customer exemption tests | inline | todo | — |
 | 5 | 5.1 | Tax transaction lifecycle events | inline | deferred | deferred by the owner |
 | 5 | 5.2 | Emit lifecycle requests from document transitions | inline | deferred | deferred by the owner |

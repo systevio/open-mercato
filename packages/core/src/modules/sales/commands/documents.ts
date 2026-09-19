@@ -750,10 +750,16 @@ async function resolveCustomerSnapshot(
   customerContactId?: string | null,
 ): Promise<Record<string, unknown> | null> {
   if (!customerEntityId) return null;
-  const customer = await em.findOne(
+  // Decrypting read: `customer_entities` declares encrypted fields, and this
+  // snapshot is itself encrypted at rest (sales/encryption.ts). A plain
+  // `em.findOne` here would write ciphertext INTO an encrypted column — double
+  // encryption — and hand the tax provider an unreadable exemption certificate.
+  const customer = await findOneWithDecryption(
+    em,
     CustomerEntity,
     { id: customerEntityId, organizationId, tenantId },
     { populate: ["personProfile", "companyProfile"] },
+    { tenantId, organizationId },
   );
   if (!customer) return null;
 
@@ -772,6 +778,14 @@ async function resolveCustomerSnapshot(
       displayName: customer.displayName,
       primaryEmail: customer.primaryEmail ?? null,
       primaryPhone: customer.primaryPhone ?? null,
+      // Read by the tax stage through TaxCustomer.exemption. The snapshot is
+      // already encrypted at rest (sales/encryption.ts), so carrying the
+      // certificate number here adds no new plaintext surface.
+      taxExemption: {
+        isExempt: customer.isTaxExempt ?? false,
+        code: customer.taxExemptionCode ?? null,
+        certificateNumber: customer.taxExemptionCertificate ?? null,
+      },
       personProfile: customer.personProfile
         ? {
             id: customer.personProfile.id,
