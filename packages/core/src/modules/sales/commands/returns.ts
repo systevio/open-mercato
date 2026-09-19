@@ -18,6 +18,7 @@ import { resolveRedoSnapshot } from '@open-mercato/shared/lib/commands/redo'
 import { SalesOrder, SalesOrderAdjustment, SalesOrderLine, SalesReturn, SalesReturnLine } from '../data/entities'
 import { mapOrderLineEntityToSnapshot } from '../lib/lineSnapshots'
 import { resolveTaxDocumentContext } from '../lib/providers/taxContext'
+import type { TaxInfo } from '../lib/providers/taxInfo'
 import { loadShippedQuantityByLine } from '../lib/shipments/snapshots'
 import { computeAvailableReturnQuantity } from '../lib/returnQuantity'
 import {
@@ -117,6 +118,20 @@ function resolveExistingPaymentTotals(order: SalesOrder): { paidTotalAmount: num
     paidTotalAmount: toNumeric(order.paidTotalAmount),
     refundedTotalAmount: toNumeric(order.refundedTotalAmount),
   }
+}
+
+/**
+ * Mirrors `applyTaxColumns` in `commands/documents.ts`: a return recalculates
+ * the order, so it owns the order's tax provenance for that calculation too.
+ */
+function applyTaxColumns(order: SalesOrder, calculation: SalesDocumentCalculationResult): void {
+  const info = (calculation.metadata ?? {}).tax as TaxInfo | undefined
+  if (!info) return
+  order.taxStrategyKey = info.providerKey
+  order.taxInfo = info as unknown as Record<string, unknown>
+  order.taxStatus = info.status
+  order.taxCalculatedAt = new Date(info.calculatedAt)
+  order.taxTransactionRef = info.transaction.reference
 }
 
 function applyOrderTotals(order: SalesOrder, totals: SalesDocumentCalculationResult['totals'], lineCount: number): void {
@@ -422,6 +437,7 @@ async function reverseReturnEffects(
           existingTotals: resolveExistingPaymentTotals(order),
         })
         applyOrderTotals(order, calculation.totals, calculation.lines.length)
+        applyTaxColumns(order, calculation)
         order.updatedAt = new Date()
         em.persist(order)
       },
@@ -572,6 +588,7 @@ async function restoreReturnEffects(
           existingTotals: resolveExistingPaymentTotals(order),
         })
         applyOrderTotals(order, calculation.totals, calculation.lines.length)
+        applyTaxColumns(order, calculation)
         order.updatedAt = new Date()
         em.persist(order)
       },
@@ -758,6 +775,7 @@ const createReturnCommand: CommandHandler<ReturnCreateInput, { returnId: string 
         existingTotals: resolveExistingPaymentTotals(order),
       })
       applyOrderTotals(order, calculation.totals, calculation.lines.length)
+      applyTaxColumns(order, calculation)
       order.updatedAt = new Date()
       tx.persist(order)
 

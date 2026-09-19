@@ -3737,6 +3737,28 @@ async function replaceOrderAdjustments(
   });
 }
 
+/**
+ * The five columns every recalculating write owns. They are written in the same
+ * `withAtomicFlush` phase as the totals, so a document can never hold amounts
+ * from one calculation and provenance from another.
+ *
+ * A calculation that ran no tax stage leaves them alone rather than clearing
+ * them: that is what a third party caller of `calculateDocumentTotals` produces,
+ * and wiping a previous provider's result would be a silent data loss.
+ */
+function applyTaxColumns(
+  document: SalesOrder | SalesQuote | SalesInvoice | SalesCreditMemo,
+  calculation: SalesDocumentCalculationResult,
+): void {
+  const info = (calculation.metadata ?? {}).tax as TaxInfo | undefined;
+  if (!info) return;
+  document.taxStrategyKey = info.providerKey;
+  document.taxInfo = info as unknown as Record<string, unknown>;
+  document.taxStatus = info.status;
+  document.taxCalculatedAt = new Date(info.calculatedAt);
+  document.taxTransactionRef = info.transaction.reference;
+}
+
 function applyQuoteTotals(
   quote: SalesQuote,
   totals: SalesDocumentCalculationResult["totals"],
@@ -5059,6 +5081,7 @@ const createQuoteCommand: CommandHandler<
             adjustmentInputs,
           );
           applyQuoteTotals(quote, calculation.totals, calculation.lines.length);
+          applyTaxColumns(quote, calculation);
           await emitTotalsCalculated(eventBus, {
             documentKind: "quote",
             documentId: quote.id,
@@ -5475,6 +5498,7 @@ const updateQuoteCommand: CommandHandler<
               adjustmentInputs,
             );
             applyQuoteTotals(quote, calculation.totals, calculation.lines.length);
+            applyTaxColumns(quote, calculation);
             let eventBus: EventBus | null = null;
             try {
               eventBus = ctx.container.resolve("eventBus") as EventBus;
@@ -5738,6 +5762,7 @@ const updateOrderCommand: CommandHandler<
               adjustmentInputs,
             );
             applyOrderTotals(order, calculation.totals, calculation.lines.length);
+            applyTaxColumns(order, calculation);
             let eventBus: EventBus | null = null;
             try {
               eventBus = ctx.container.resolve("eventBus") as EventBus;
@@ -6122,6 +6147,7 @@ const createOrderCommand: CommandHandler<
             adjustmentInputs,
           );
           applyOrderTotals(order, calculation.totals, calculation.lines.length);
+          applyTaxColumns(order, calculation);
           await emitTotalsCalculated(eventBus, {
             documentKind: "order",
             documentId: order.id,
@@ -7469,6 +7495,7 @@ const orderLineUpsertCommand: CommandHandler<
             existingLines,
           });
           applyOrderTotals(order, calculation.totals, calculation.lines.length);
+          applyTaxColumns(order, calculation);
           await emitTotalsCalculated(eventBus, {
             documentKind: "order",
             documentId: order.id,
@@ -7647,6 +7674,7 @@ const orderLineDeleteCommand: CommandHandler<
             existingLines,
           });
           applyOrderTotals(order, calculation.totals, calculation.lines.length);
+          applyTaxColumns(order, calculation);
           await emitTotalsCalculated(eventBus, {
             documentKind: "order",
             documentId: order.id,
@@ -7958,6 +7986,7 @@ const quoteLineUpsertCommand: CommandHandler<
             existingLines,
           });
           applyQuoteTotals(quote, calculation.totals, calculation.lines.length);
+          applyTaxColumns(quote, calculation);
           await emitTotalsCalculated(eventBus, {
             documentKind: "quote",
             documentId: quote.id,
@@ -8108,6 +8137,7 @@ const quoteLineDeleteCommand: CommandHandler<
             existingLines,
           });
           applyQuoteTotals(quote, calculation.totals, calculation.lines.length);
+          applyTaxColumns(quote, calculation);
           await emitTotalsCalculated(eventBus, {
             documentKind: "quote",
             documentId: quote.id,
@@ -8397,6 +8427,7 @@ const orderAdjustmentUpsertCommand: CommandHandler<
         async () => {
           await replaceOrderAdjustments(em, order, calculation, adjustmentInputs);
           applyOrderTotals(order, calculation.totals, calculation.lines.length);
+          applyTaxColumns(order, calculation);
           order.updatedAt = new Date();
           await emitTotalsCalculated(eventBus, {
             documentKind: "order",
@@ -8558,6 +8589,7 @@ const orderAdjustmentDeleteCommand: CommandHandler<
         async () => {
           await replaceOrderAdjustments(em, order, calculation, adjustmentInputs);
           applyOrderTotals(order, calculation.totals, calculation.lines.length);
+          applyTaxColumns(order, calculation);
           order.updatedAt = new Date();
           await emitTotalsCalculated(eventBus, {
             documentKind: "order",
@@ -8846,6 +8878,7 @@ const quoteAdjustmentUpsertCommand: CommandHandler<
         async () => {
           await replaceQuoteAdjustments(em, quote, calculation, adjustmentInputs);
           applyQuoteTotals(quote, calculation.totals, calculation.lines.length);
+          applyTaxColumns(quote, calculation);
           quote.updatedAt = new Date();
           await emitTotalsCalculated(eventBus, {
             documentKind: "quote",
@@ -9006,6 +9039,7 @@ const quoteAdjustmentDeleteCommand: CommandHandler<
         async () => {
           await replaceQuoteAdjustments(em, quote, calculation, adjustmentInputs);
           applyQuoteTotals(quote, calculation.totals, calculation.lines.length);
+          applyTaxColumns(quote, calculation);
           quote.updatedAt = new Date();
           await emitTotalsCalculated(eventBus, {
             documentKind: "quote",
