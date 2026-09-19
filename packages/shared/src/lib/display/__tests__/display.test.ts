@@ -290,3 +290,17 @@ describe('addressDisplayProfile', () => {
       .toBe(EU_DISPLAY_TEMPLATE.addressLayout)
   })
 })
+
+describe('compact money', () => {
+  it('renders a large amount compactly while keeping the market separators', () => {
+    expect(formatMoney(1_250_000, 'USD', US_DISPLAY_TEMPLATE, { maximumFractionDigits: 0, notation: 'compact' }))
+      .toBe('$1M')
+    expect(formatMoney(1_250_000, 'USD', US_DISPLAY_TEMPLATE, { maximumFractionDigits: 1, notation: 'compact' }))
+      .toBe('$1.3M')
+  })
+
+  it('leaves the standard notation untouched', () => {
+    expect(formatMoney(48_250, 'USD', US_DISPLAY_TEMPLATE, { maximumFractionDigits: 2, minimumFractionDigits: 2 }))
+      .toBe('$48,250.00')
+  })
+})
