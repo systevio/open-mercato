@@ -10,6 +10,14 @@ export function formatCurrency(
   if (!amount) return null
   const parsed = Number(amount)
   if (!Number.isFinite(parsed)) return currency ? `${amount} ${currency}` : amount
+  if (!profile) {
+    if (!currency) return parsed.toLocaleString()
+    try {
+      return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(parsed)
+    } catch {
+      return `${parsed.toLocaleString()} ${currency}`
+    }
+  }
   return currency
     ? formatMoney(parsed, currency, profile, { locale })
     : formatNumber(parsed, profile, { locale })

@@ -9,4 +9,10 @@ describe('formatGatewayTransactionAmount', () => {
   it('keeps malformed provider amounts visibly denominated', () => {
     expect(formatGatewayTransactionAmount('pending', 'EUR', US_DISPLAY_TEMPLATE)).toBe('pending EUR')
   })
+
+  it('preserves the legacy formatter when no profile is available', () => {
+    expect(formatGatewayTransactionAmount('1234.5', 'USD')).toBe(
+      new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(1234.5),
+    )
+  })
 })

@@ -1729,6 +1729,7 @@ export function formatPriceDisplay(pricing: PricingSummary | null, profile?: Dis
     ? pricing.unitPriceGross ?? pricing.unitPriceNet
     : pricing.unitPriceNet ?? pricing.unitPriceGross
   if (!amount) return pricing.currencyCode ?? '—'
+  if (!profile) return `${pricing.currencyCode ?? ''} ${amount}`
   return pricing.currencyCode
     ? formatMoney(amount, pricing.currencyCode, profile) ?? String(amount)
     : formatNumber(amount, profile) ?? String(amount)

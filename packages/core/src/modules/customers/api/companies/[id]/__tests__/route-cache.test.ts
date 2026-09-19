@@ -209,6 +209,7 @@ describe('GET /api/customers/companies/[id] — detail cache (#3664)', () => {
     expect(storeOptions.tags).toEqual(
       expect.arrayContaining([
         'crud:customers.company:tenant:tenant-1:org:org-1:collection',
+        'crud:customers.deal:tenant:tenant-1:org:org-1:collection',
         'crud:customers.address:tenant:tenant-1:org:org-1:collection',
         'crud:customers.tag.assignment:tenant:tenant-1:org:org-1:collection',
         'crud:customers.label.assignment:tenant:tenant-1:org:org-1:collection',
@@ -217,7 +218,7 @@ describe('GET /api/customers/companies/[id] — detail cache (#3664)', () => {
         'crud:customers.activity:tenant:tenant-1:org:org-1:collection',
       ]),
     )
-    expect(storeOptions.tags).toHaveLength(7)
+    expect(storeOptions.tags).toHaveLength(8)
   })
 
   it('serves the cached payload and skips the detail sweeps on a cache hit', async () => {

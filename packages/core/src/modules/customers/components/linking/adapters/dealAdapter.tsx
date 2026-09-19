@@ -256,6 +256,10 @@ function formatValue(
   if (!amount) return null
   const parsed = parseFloat(amount)
   if (!Number.isFinite(parsed)) return amount
+  if (!displayProfile) {
+    const formatted = parsed.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    return currency ? `${formatted} ${currency}` : formatted
+  }
   return currency
     ? formatMoney(parsed, currency, displayProfile, { locale, maximumFractionDigits: 2 })
     : formatNumber(parsed, displayProfile, { locale, maximumFractionDigits: 2 })

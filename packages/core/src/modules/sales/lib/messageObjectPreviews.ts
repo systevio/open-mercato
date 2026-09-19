@@ -62,6 +62,14 @@ export function formatTotal(
   if (!amount) return null
   const value = Number(amount)
   if (!Number.isFinite(value)) return currency ? `${amount} ${currency}` : amount
+  if (!profile) {
+    if (!currency) return value.toLocaleString()
+    try {
+      return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(value)
+    } catch {
+      return `${value.toLocaleString()} ${currency}`
+    }
+  }
   return currency ? formatMoney(value, currency, profile) : formatNumber(value, profile)
 }
 

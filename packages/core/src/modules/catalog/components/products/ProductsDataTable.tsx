@@ -145,9 +145,11 @@ export function renderPrice(
   const unit = pricing.unit_price_net ?? pricing.unit_price_gross
   if (unit == null) return <span className="text-xs text-muted-foreground">{fallback}</span>
   const currencyCode = currency ?? pricing.currency_code
-  const formatted = (currencyCode
-    ? formatMoney(unit, currencyCode, profile)
-    : formatNumber(unit, profile)) ?? fallback
+  const formatted = !profile
+    ? `${currencyCode ?? ''} ${unit}`
+    : (currencyCode
+        ? formatMoney(unit, currencyCode, profile)
+        : formatNumber(unit, profile)) ?? fallback
   const kind = pricing.kind ?? 'list'
   return (
     <div className="flex flex-col">

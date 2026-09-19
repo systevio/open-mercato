@@ -21,4 +21,12 @@ describe('channel offer money display', () => {
     expect(formatted).toBe('1,234.5')
     expect(formatted).not.toContain('$')
   })
+
+  it('preserves the legacy formatter when no profile is available', () => {
+    expect(formatPriceValue({
+      currencyCode: 'USD',
+      unitPriceNet: '1234.5',
+      displayMode: 'excluding-tax',
+    })).toBe('USD 1234.5')
+  })
 })

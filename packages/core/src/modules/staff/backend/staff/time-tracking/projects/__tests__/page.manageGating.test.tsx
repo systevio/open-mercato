@@ -30,7 +30,7 @@ const mockTranslate = (
   return interpolate(key, fallbackOrParams)
 }
 
-jest.mock('@open-mercato/shared/lib/i18n/context', () => ({ useT: () => mockTranslate }))
+jest.mock('@open-mercato/shared/lib/i18n/context', () => ({ useLocale: () => 'en-US', useT: () => mockTranslate }))
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),

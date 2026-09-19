@@ -128,6 +128,7 @@ export function formatPriceValue(price: OfferPriceRow | null, profile?: DisplayP
     ? price.unitPriceGross ?? price.unitPriceNet
     : price.unitPriceNet ?? price.unitPriceGross
   if (amount === null || amount === undefined) return price.currencyCode ?? '—'
+  if (!profile) return `${price.currencyCode ?? ''} ${String(amount)}`
   return price.currencyCode
     ? formatMoney(amount, price.currencyCode, profile) ?? String(amount)
     : formatNumber(amount, profile) ?? String(amount)
@@ -164,7 +165,9 @@ function renderPriceBadge(price: OfferPriceRow, t: Translator, profile?: Display
     : price.unitPriceNet ?? price.unitPriceGross
   const amount = numeric === null || numeric === undefined
     ? '—'
-    : price.currencyCode
+    : !profile
+      ? String(numeric)
+      : price.currencyCode
       ? formatMoney(numeric, price.currencyCode, profile) ?? String(numeric)
       : formatNumber(numeric, profile) ?? String(numeric)
   const className = ['rounded border px-2 py-1 text-xs', muted ? 'bg-muted' : null].filter(Boolean).join(' ')
@@ -172,7 +175,7 @@ function renderPriceBadge(price: OfferPriceRow, t: Translator, profile?: Display
     <div key={`${price.id ?? 'price'}-${label}`} className={className}>
       <div className="font-medium">{label}</div>
       <div className="text-muted-foreground">
-        {amount}
+        {!profile ? `${price.currencyCode ?? ''} ${amount}` : amount}
       </div>
     </div>
   )

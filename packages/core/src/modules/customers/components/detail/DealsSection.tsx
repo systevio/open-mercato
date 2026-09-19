@@ -286,6 +286,17 @@ function formatValueLabel(
   profile?: DisplayProfile | null,
 ): string {
   if (typeof amount === 'number') {
+    if (!profile) {
+      try {
+        return new Intl.NumberFormat(locale, {
+          style: currency ? 'currency' : 'decimal',
+          currency: currency ?? undefined,
+          maximumFractionDigits: 2,
+        }).format(amount)
+      } catch {
+        return currency ? `${amount} ${currency}` : `${amount}`
+      }
+    }
     return formatCurrency(amount, currency, locale, profile)
   }
   return emptyLabel

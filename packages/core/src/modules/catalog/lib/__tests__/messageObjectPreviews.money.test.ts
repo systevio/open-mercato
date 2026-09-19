@@ -12,4 +12,10 @@ describe('catalog message preview money display', () => {
     expect(formatted).toBe('1,234.5')
     expect(formatted).not.toContain('$')
   })
+
+  it('preserves the legacy formatter when no profile is available', () => {
+    expect(formatVariantPrice('1234.5', 'USD')).toBe(
+      new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(1234.5),
+    )
+  })
 })

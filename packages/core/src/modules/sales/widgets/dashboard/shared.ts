@@ -26,6 +26,25 @@ export function formatAmount(
 ): string {
   const numeric = Number(value)
   if (!Number.isFinite(numeric)) return '--'
+  if (!profile) {
+    try {
+      if (currency && currency.trim().length > 0) {
+        return new Intl.NumberFormat(locale ?? undefined, {
+          style: 'currency',
+          currency,
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(numeric)
+      }
+      return new Intl.NumberFormat(locale ?? undefined, {
+        style: 'decimal',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(numeric)
+    } catch {
+      return String(numeric)
+    }
+  }
   if (currency && currency.trim().length > 0) {
     return formatMoney(numeric, currency, profile, {
       locale,

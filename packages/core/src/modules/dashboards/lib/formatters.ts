@@ -63,6 +63,19 @@ function formatDecimal(
 export function formatCurrency(value: number, options: FormatCurrencyOptions = {}): string {
   const { currency, locale, profile, minimumFractionDigits = 0, maximumFractionDigits = 0 } = options
   const code = normalizeCurrencyCode(currency)
+  if (!profile) {
+    if (!code) return formatDecimal(value, minimumFractionDigits, maximumFractionDigits, locale)
+    try {
+      return getNumberFormatter(locale, {
+        style: 'currency',
+        currency: code,
+        minimumFractionDigits,
+        maximumFractionDigits,
+      }).format(value)
+    } catch {
+      return `${formatDecimal(value, minimumFractionDigits, maximumFractionDigits, locale)} ${code}`
+    }
+  }
   const formatOptions = { locale, minimumFractionDigits, maximumFractionDigits }
   if (!code) return formatNumber(value, profile, formatOptions) ?? ''
   return formatMoney(value, code, profile, formatOptions) ?? ''

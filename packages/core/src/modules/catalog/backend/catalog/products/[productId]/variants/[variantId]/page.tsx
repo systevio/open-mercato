@@ -102,6 +102,7 @@ export function resolveVariantPriceLabel(
       typeof entry.currencyCode === 'string' && entry.currencyCode.trim().length
         ? entry.currencyCode.trim().toUpperCase()
         : null
+    if (!profile) return currencyCode ? `${currencyCode} ${amount}` : amount
     return currencyCode
       ? formatMoney(amount, currencyCode, profile)
       : formatNumber(amount, profile)

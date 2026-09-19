@@ -99,6 +99,10 @@ function formatAmount(
   displayProfile?: DisplayProfile | null,
 ): string {
   if (value === null || value === undefined) return '—'
+  if (!displayProfile) {
+    const fixed = value.toFixed(2)
+    return currencyCode ? `${fixed} ${currencyCode}` : fixed
+  }
   return (currencyCode
     ? formatMoney(value, currencyCode, displayProfile, {
         minimumFractionDigits: 2,

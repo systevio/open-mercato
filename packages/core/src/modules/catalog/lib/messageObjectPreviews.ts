@@ -40,6 +40,17 @@ export function formatVariantPrice(
   if (!amount) return null
   const value = Number(amount)
   if (!Number.isFinite(value)) return currencyCode ? `${currencyCode.toUpperCase()} ${amount}` : amount
+  if (!profile) {
+    if (!currencyCode) return value.toLocaleString()
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: currencyCode.toUpperCase(),
+      }).format(value)
+    } catch {
+      return `${currencyCode.toUpperCase()} ${value.toLocaleString()}`
+    }
+  }
   return currencyCode ? formatMoney(value, currencyCode, profile) : formatNumber(value, profile)
 }
 

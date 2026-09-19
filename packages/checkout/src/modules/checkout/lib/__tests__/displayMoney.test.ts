@@ -9,4 +9,9 @@ describe('formatCheckoutMoney', () => {
   it('does not infer a denomination when the stored currency is missing', () => {
     expect(formatCheckoutMoney(1234.5, null, US_DISPLAY_TEMPLATE)).toBe('1,234.5')
   })
+
+  it('preserves the legacy formatter when no profile is available', () => {
+    expect(formatCheckoutMoney(1234.5, 'USD', null, 'en-US')).toBe('$1,234.50')
+    expect(formatCheckoutMoney(1234.5, null, null, 'en-US')).toBe('1,234.50')
+  })
 })
