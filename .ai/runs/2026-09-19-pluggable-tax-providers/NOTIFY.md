@@ -30,3 +30,12 @@
 - UI verification skipped this checkpoint: phase 1 changes no `.tsx`, no component, no route. First UI surface is Step 2.7.
 - Integration tests not run this checkpoint: the first acceptance spec lands in Step 2.8.
 - Runner recorded: local (`yarn X`); no compose `app` container is running.
+
+## 2026-09-19T13:40:00Z — phase 2 closed; database-level verification of the migration
+- Steps 2.1 to 2.8 landed. Phase 2 is complete: columns and migration, persistence, snapshots and undo, invoice and credit memo inheritance, API exposure, the recalculate command and route, the detail page tax section, the lifecycle tax block and TC-SALES-TAX-001.
+- **The migration was verified against a real empty database**, not just asserted. Took `omw up --fresh` (sanctioned for a migration-adding task), then completed the provisioning the tool left unfinished: `yarn db:migrate` + `yarn initialize` against the task's own isolated `om_task1` database. Never the shared instance database.
+  - `information_schema.columns` reports all **20** new columns across the four `sales_*` document tables (3 on orders, 4 on quotes, 5 on invoices, 5 on credit memos), matching the per table asymmetry exactly.
+  - `pg_indexes` reports all **4** partial `*_tax_transaction_ref_idx` indexes.
+  - `yarn initialize` then completed on the migrated schema, so the migration does not break a first run.
+- **Integration tests and UI screenshots could NOT be captured in this worktree.** `omw up --fresh` reported "ready in 5s" but left the database empty and did not wire `apps/mercato/.env` to it; after completing the migration and initialization by hand, the running dev server still could not authenticate the seeded admin (the encrypted `users.email` values do not match the key the running process holds). This is worktree provisioning, not the change: the change's own unit, typecheck and build coverage is green, and the migration was verified directly against Postgres. Noted on the PR rather than silently skipped.
+- `apps/mercato/.env` was temporarily pointed at the isolated database to run the migration and has been restored. It is gitignored and never staged.
