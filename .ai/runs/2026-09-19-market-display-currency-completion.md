@@ -53,20 +53,20 @@ Recover the cancelled implementation and complete every first-party OSS money pr
 
 ### Phase 1: Audit and contracts
 
-- [ ] 1.1 Audit and record currency consumer dispositions
-- [ ] 1.2 Add grouped KPI API contract and regression coverage
+- [x] 1.1 Audit and record currency consumer dispositions — e95ef6e7c
+- [x] 1.2 Add grouped KPI API contract and regression coverage — e95ef6e7c
 
 ### Phase 2: Reported company path
 
-- [ ] 2.1 Migrate customer detail money consumers to profile-aware formatting
-- [ ] 2.2 Add UI/helper regressions and deterministic route verification
+- [x] 2.1 Migrate customer detail money consumers to profile-aware formatting — e95ef6e7c
+- [x] 2.2 Add UI/helper regressions and deterministic route verification — fb54a92b2
 
 ### Phase 3: Complete C2 coverage
 
-- [ ] 3.1 Complete C2 backend and interactive consumer coverage
-- [ ] 3.2 Complete public/portal, widget, preview, email, PDF and human-export coverage
-- [ ] 3.3 Add the money-format lint guard and close the audit inventory
+- [x] 3.1 Complete C2 backend and interactive consumer coverage — fb54a92b2
+- [x] 3.2 Complete public/portal, widget, preview, email, PDF and human-export coverage — fb54a92b2
+- [x] 3.3 Add the money-format lint guard and close the audit inventory — e95ef6e7c
 
 ### Phase 4: Verification and review
 
-- [ ] 4.1 Run the full gate, autofix review, and UI evidence pass
+- [ ] 4.1 Run the full gate, autofix review, and UI evidence pass (full configured gate passed at fb54a92b2; review and UI evidence pending)

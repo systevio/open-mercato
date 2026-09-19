@@ -2,7 +2,7 @@
 
 ## Currency completion amendment - 2026-09-19
 
-**Status: implementation in progress on the fork continuation.** This is the current implementation entry point for the reported currency defect.
+**Status: implementation and the configured validation gate are complete on the fork continuation; code review and live UI verification are pending.** This is the current implementation entry point for the reported currency defect.
 The original profile design below remains the foundation, including owner decisions D1-D11 and the resolved answers
 A1-A8. Its earlier compliance report describes that design, not proof that every consumer shipped. This amendment
 completes its currency scope in the same file, as required by the original PROMPT; it does not restart the original
