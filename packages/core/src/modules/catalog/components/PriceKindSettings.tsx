@@ -442,7 +442,7 @@ export function PriceKindSettings() {
         </div>
         {taxInclusiveKinds.length ? (
           <div className="px-6 pt-4">
-            <Alert variant="warning">
+            <Alert status="warning">
               <AlertDescription>
                 {t(
                   'catalog.priceKinds.taxInclusiveWarning',
