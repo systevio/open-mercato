@@ -16,8 +16,8 @@
 | 1 | 1.2 | Country-aware resolveAddressLayout and name-tolerant validateAddressForProfile | inline | done | 985bd94ef |
 | 1 | 1.3 | Wire the packages/ui AddressEditor with RTL coverage | inline | done | 90e0411ea |
 | 1 | 1.4 | Wire the customers AddressEditor with RTL coverage | inline | done | c07dfc98d |
-| 2 | 2.1 | Replace the channel region field with ChannelRegionField and RTL coverage | inline | done | PENDING |
-| 2 | 2.2 | Special-case the ship-from region in TaxProviderSettings with test coverage | inline | todo | — |
+| 2 | 2.1 | Replace the channel region field with ChannelRegionField and RTL coverage | inline | done | 0b32026e4 |
+| 2 | 2.2 | Special-case the ship-from region in TaxProviderSettings with test coverage | inline | done | PENDING |
 | 2 | 2.3 | Integration test TC-MKT-004 - customer address US state dropdown | inline | todo | — |
 | 2 | 2.4 | Integration test TC-MKT-005 - sales channel US state | inline | todo | — |
 | 2 | 2.5 | Changelog line in the parent market display spec | inline | todo | — |
