@@ -13,7 +13,7 @@
 
 | Phase | Step | Title | Exec | Status | Commit |
 |-------|------|-------|------|--------|--------|
-| 2 | 2.2a | Address layer: the `packages/ui` detail twins render from the descriptor | inline | todo | — |
+| 2 | 2.2a | Address layer: the `packages/ui` detail twins render from the descriptor | inline | done | 1a3c3bdcc |
 | 2 | 2.2b | Address layer: the `customers` twins render from the descriptor | inline | todo | — |
 | 2 | 2.3 | Customers surfaces: people, companies, deals, detail cards, phone in `formConfig` | inline | todo | — |
 | 2 | 2.4 | CRM calendar: `range.ts`, `MonthGrid`, `AgendaList`, conflicts route | inline | todo | — |

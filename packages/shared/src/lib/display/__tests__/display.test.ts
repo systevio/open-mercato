@@ -2,7 +2,7 @@ import { LEGACY_DISPLAY_DEFAULTS, withProfile } from '../profile'
 import { US_DISPLAY_TEMPLATE, EU_DISPLAY_TEMPLATE, getMarketTemplate } from '../templates'
 import { formatMoney, formatNumber } from '../money'
 import { formatDate, formatDateTime, formatTime, formatDateRange, weekStartsOn, hourCycle } from '../datetime'
-import { formatAddress, resolveAddressLayout, validateAddressForProfile, isValidPostalCode } from '../address'
+import { addressDisplayProfile, formatAddress, resolveAddressLayout, validateAddressForProfile, isValidPostalCode } from '../address'
 import { formatPhone, normalizePhoneInput } from '../phone'
 import { convertUnit, formatLength, formatWeight } from '../units'
 import { paperSize } from '../paper'
@@ -274,5 +274,19 @@ describe('price presentation', () => {
     expect(resolvePriceLabelKey('sales.documents.totals.totalNet', null))
       .toBe('sales.documents.totals.totalNet')
     expect(resolvePriceLabelKey('some.unmapped.key', US_DISPLAY_TEMPLATE)).toBe('some.unmapped.key')
+  })
+})
+
+describe('addressDisplayProfile', () => {
+  it('folds the legacy address format setting into the frozen defaults when no market is picked', () => {
+    expect(addressDisplayProfile('street_first', null).addressLayout).toBe('street_first')
+    expect(addressDisplayProfile('street_first', null).currencyCode).toBe(LEGACY_DISPLAY_DEFAULTS.currencyCode)
+    expect(addressDisplayProfile('line_first', undefined).addressLayout).toBe('line_first')
+  })
+
+  it('lets a picked market win over the legacy setting', () => {
+    expect(addressDisplayProfile('street_first', US_DISPLAY_TEMPLATE)).toBe(US_DISPLAY_TEMPLATE)
+    expect(addressDisplayProfile('line_first', EU_DISPLAY_TEMPLATE).addressLayout)
+      .toBe(EU_DISPLAY_TEMPLATE.addressLayout)
   })
 })
