@@ -22,6 +22,10 @@ const NEUTRAL_PRICE_LABEL_KEYS: Record<string, string> = {
   'sales.documents.detail.totals.shippingGross': 'sales.documents.detail.totals.shipping',
   'sales.documents.detail.totals.grandTotalNet': 'sales.documents.detail.totals.grandTotal',
   'sales.documents.detail.totals.grandTotalGross': 'sales.documents.detail.totals.grandTotal',
+  'sales.documents.detail.totals.discountTotal': 'sales.documents.usPresentation.totals.discount',
+  'sales.documents.items.table.unit': 'sales.documents.usPresentation.items.price',
+  'sales.documents.items.table.total': 'sales.documents.usPresentation.items.lineTotal',
+  'sales.quotes.public.subtotalGross': 'sales.quotes.public.subtotal',
   'catalog.products.price.net': 'catalog.products.price.label',
   'catalog.products.price.gross': 'catalog.products.price.label',
 }

@@ -771,10 +771,42 @@ Under `price_presentation = single_price_plus_tax`:
   kind and recommending the switch; nothing is rewritten automatically, because a stored display mode is the admin's
   data. The `us` seed template creates price kinds as `excluding-tax` for organizations that are new, which is the only
   case where seeding applies at all (A5).
-- Document line tables show Unit price, Quantity, Total. Document totals show Subtotal, Shipping, Sales tax, Total.
+- Document line tables show **Price** (the unit net amount), **Quantity**, **Line total** (net), **Tax** and **Total
+  including tax**. There is no net/gross pair on any row and nothing is labelled "net" or "gross".
+  - The Tax cell comes from the document's persisted tax result — `tax_info.lines[].taxAmount` for that line, produced
+    by the selected tax provider or the built-in default — and falls back to the line's own `tax_amount` when
+    `tax_info` does not itemize the line. A `tax_info` entry wins even at zero: a provider that calculated `0.00` for a
+    non-taxable line said something a dash would hide.
+  - A **line's own zero counts as absent**, because `sales_*_lines.tax_amount` is `NOT NULL DEFAULT '0'` and a stored
+    `0` cannot be told apart from "never calculated". A document with no per-line tax at all (`tax_status` `fallback`
+    or `exempt` with an empty `tax_info.lines`) therefore shows a dash in both Tax and Total including tax, and only
+    the document level tax total, rather than a column of confident zeros.
+  - Resolution lives in `sales/lib/lineTaxPresentation.ts` and is shared by the admin line table and the public quote
+    page, so both surfaces read the same figure. It is presentation only: nothing there recalculates tax.
+- Document totals are a column that **adds up**: **Subtotal** (the lines before tax), **Discount** (negative, only when
+  non-zero), **Shipping** (only when non-zero), **Surcharges** (only when non-zero), the market's tax line (**Sales
+  tax** in the US), then **Total** — the tax inclusive amount (`grand_total_gross_amount`). No net total, no gross
+  total, no "grand total (gross)" row. `TaxBreakdownSection` stays as the expandable per jurisdiction detail under the
+  tax row, and an order keeps its Paid / Refunded / Outstanding rows, which are payment state rather than price
+  presentation.
+  - The engine folds every order scoped adjustment into `grand_total_net_amount` (it is by construction identical to
+    `subtotal_net_amount`), so the lines-only Subtotal is read back out of it:
+    `grandTotalNet + discountTotal - shippingNet - surchargeTotal`. Backing out exactly the rows the block then lists
+    again is what makes the column add up for every document. Adjustment kinds that get no row of their own stay inside
+    the Subtotal rather than vanishing from the Total; they remain itemized on the Adjustments tab.
+  - Every term of the sum is `pinned`, so the collapsed block still shows the whole arithmetic. The `dual_net_gross`
+    block pins nothing and collapses exactly as it did.
+  - The builder is `sales/components/documents/documentTotalsItems.ts`, shared by both presentations so the EU block
+    has one definition rather than a set of `if (!singlePrice)` branches inside the detail page.
+- The public quote page and the quote emails get the same treatment through the server built view model
+  (`sales/lib/quoteDisplay.ts`): per line Tax and Total including tax, a Subtotal that backs the discount out of the net
+  grand total, a Discount row only when there is one, and a **tax inclusive** Total. A quote persists no shipping or
+  surcharge column of its own, so an adjustment of either kind stays inside its Subtotal.
 - Every `(net)` and `(gross)` label resolves to a neutral key. The mechanism is a key mapping in the `markets` helper
   (`resolvePriceLabelKey(baseKey, profile)`), not 54 edits to `sales/i18n/en.json`: the EU labels stay exactly as they
-  are for `dual_net_gross`.
+  are for `dual_net_gross`. Labels the EU set has no word for at all — the per line Tax and Total including tax columns,
+  and the neutral "Discount" — are new keys under `sales.documents.usPresentation.*`, and the mapping points the EU keys
+  at them.
 
 Under `dual_net_gross`, and with no profile at all, nothing changes.
 

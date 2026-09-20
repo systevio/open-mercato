@@ -11,6 +11,12 @@ export type DocumentTotalItem = {
   amount: number | string | null | undefined
   emphasize?: boolean
   /**
+   * Keeps the row visible while the block is collapsed. A presentation whose rows form a column
+   * that adds up (`single_price_plus_tax`) has to show every term of the sum, or the collapsed
+   * block reads as a total with no arithmetic behind it.
+   */
+  pinned?: boolean
+  /**
    * A qualification the row's amount needs to be read correctly - the market's "tax will be
    * calculated at order" note under an estimated tax line. Rendered under the label, never instead
    * of it.
@@ -42,8 +48,13 @@ export function DocumentTotals({ title, currency, items, className }: DocumentTo
     if (numeric === null || Number.isNaN(numeric) || numeric <= 0) return null
     return entry
   }, [items])
+  const pinnedRows = React.useMemo(() => items.filter((item) => item.pinned && !item.emphasize), [items])
   const collapsedItems = React.useMemo(() => {
-    const base = emphasizedRows.length ? [...emphasizedRows] : items.slice(0, 3)
+    const base = pinnedRows.length
+      ? [...pinnedRows, ...emphasizedRows]
+      : emphasizedRows.length
+        ? [...emphasizedRows]
+        : items.slice(0, 3)
     const augmented = paidItem && !base.some((item) => item.key === paidItem.key) ? [...base, paidItem] : base
     const seen = new Set<string>()
     return augmented.filter((item) => {
@@ -51,7 +62,7 @@ export function DocumentTotals({ title, currency, items, className }: DocumentTo
       seen.add(item.key)
       return true
     })
-  }, [emphasizedRows, items, paidItem])
+  }, [emphasizedRows, items, paidItem, pinnedRows])
   const visibleItems = expanded ? items : collapsedItems
   const uniqueItemCount = React.useMemo(() => new Set(items.map((item) => item.key)).size, [items])
   const hiddenCount = Math.max(0, uniqueItemCount - visibleItems.length)

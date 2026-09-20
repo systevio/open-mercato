@@ -49,7 +49,9 @@ import { E } from "#generated/entities.ids.generated";
 import { useT, useLocale } from "@open-mercato/shared/lib/i18n/context";
 import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider';
 import { formatNumber as formatMarketNumber } from '@open-mercato/shared/lib/display/money';
+import { showsSinglePricePlusTax } from "@open-mercato/shared/lib/display/price";
 import { useOrganizationScopeDetail } from "@open-mercato/shared/lib/frontend/useOrganizationScope";
+import { useTaxProviderSelection } from "../useTaxProviderSelection";
 import { formatMoney, normalizeNumber } from "./lineItemUtils";
 import type { SalesLineRecord } from "./lineItemTypes";
 import { prepareShippedLineUpdatePayload } from "./lineItemShipmentLock";
@@ -494,6 +496,21 @@ export function LineItemDialog({
   const t = useT();
   const locale = useLocale();
   const displayProfile = useDisplayProfile();
+  // Decision D7 of the market display profile spec: under `single_price_plus_tax` the document
+  // carries one price plus a tax line, so the dialog offers no net/gross choice at all. The single
+  // field is the net amount, which is what the stored `unit_price_net` column already holds — the
+  // numeric columns do not change, only what the user is asked for.
+  const singlePricePresentation = showsSinglePricePlusTax(displayProfile);
+  const forcedPriceMode: "net" | null = singlePricePresentation ? "net" : null;
+  const resolvePriceMode = React.useCallback(
+    (candidate: "net" | "gross"): "net" | "gross" => forcedPriceMode ?? candidate,
+    [forcedPriceMode],
+  );
+  // Independent of the market: an external provider computes the tax from the document's addresses
+  // after the line is written, so a per-line tax class is not a choice the user can make here.
+  const { isExternalProvider: usesExternalTaxProvider } = useTaxProviderSelection({
+    enabled: open,
+  });
   // These fields are hand-rolled text inputs, so the raw string a user typed reaches the
   // submit handler. It carries the separator the surrounding UI displays, which follows the
   // application locale — `110,70` under Polish (issue #5552). A blank field keeps its old
@@ -518,9 +535,11 @@ export function LineItemDialog({
   const scope = useOrganizationScopeDetail();
   const resolvedOrganizationId = organizationId ?? scope.organizationId ?? null;
   const resolvedTenantId = tenantId ?? scope.tenantId ?? null;
-  const [initialValues, setInitialValues] = React.useState<LineFormState>(() =>
-    defaultForm(currencyCode),
-  );
+  const [initialValues, setInitialValues] = React.useState<LineFormState>(() => {
+    const base = defaultForm(currencyCode);
+    if (forcedPriceMode) base.priceMode = forcedPriceMode;
+    return base;
+  });
   const [lineMode, setLineMode] = React.useState<"catalog" | "custom">(
     defaultForm(currencyCode).lineMode,
   );
@@ -636,8 +655,12 @@ export function LineItemDialog({
   const resetForm = React.useCallback(
     (next?: Partial<LineFormState>) => {
       const base = { ...defaultForm(currencyCode), ...next };
+      if (forcedPriceMode) base.priceMode = forcedPriceMode;
       const defaultRate = defaultTaxRateRef.current;
-      if (!base.taxRateId && defaultRate) {
+      // With an external provider the line inherits its tax class from the product, or carries
+      // none at all — seeding the organization's default class would invent a fallback the user
+      // was never shown and could not change.
+      if (!base.taxRateId && defaultRate && !usesExternalTaxProvider) {
         base.taxRateId = defaultRate.id;
         base.taxRate = Number.isFinite(defaultRate.rate ?? null)
           ? (defaultRate.rate as number)
@@ -653,7 +676,7 @@ export function LineItemDialog({
       setEditingId(null);
       setFormResetKey((prev) => prev + 1);
     },
-    [currencyCode],
+    [currencyCode, forcedPriceMode, usesExternalTaxProvider],
   );
 
   const closeDialog = React.useCallback(() => {
@@ -1195,8 +1218,9 @@ export function LineItemDialog({
     ) => {
       if (!setFormValue) return;
       if (selected) {
-        const mode =
-          selected.displayMode === "excluding-tax" ? "net" : "gross";
+        const mode = resolvePriceMode(
+          selected.displayMode === "excluding-tax" ? "net" : "gross",
+        );
         const amountPerBaseUnit =
           mode === "net"
             ? (selected.amountNet ?? selected.amountGross ?? 0)
@@ -1220,7 +1244,13 @@ export function LineItemDialog({
       setFormValue("taxRate", fallbackTax.taxRate ?? null);
       setFormValue("taxRateId", fallbackTax.taxRateId ?? null);
     },
-    [currencyCode, findTaxRateIdByValue, resolveTaxSelection, resolveUnitPriceFactor],
+    [
+      currencyCode,
+      findTaxRateIdByValue,
+      resolvePriceMode,
+      resolveTaxSelection,
+      resolveUnitPriceFactor,
+    ],
   );
 
   const loadLineStatuses = React.useCallback(async (): Promise<
@@ -1479,7 +1509,9 @@ export function LineItemDialog({
           },
         );
       }
-      const resolvedPriceMode = values.priceMode === "net" ? "net" : "gross";
+      const resolvedPriceMode = resolvePriceMode(
+        values.priceMode === "net" ? "net" : "gross",
+      );
       const catalogSnapshot =
         !isCustomLine &&
         typeof values.catalogSnapshot === "object" &&
@@ -1653,6 +1685,7 @@ export function LineItemDialog({
       closeDialog,
       numberExample,
       parseUserNumber,
+      resolvePriceMode,
       resolvedOrganizationId,
       resolvedTenantId,
     ],
@@ -1696,7 +1729,7 @@ export function LineItemDialog({
                 setFormValue?.("quantityUnit", null);
               }
               setFormValue?.("unitPrice", "");
-              setFormValue?.("priceMode", "gross");
+              setFormValue?.("priceMode", resolvePriceMode("gross"));
             }
           };
           return (
@@ -1789,7 +1822,7 @@ export function LineItemDialog({
                     setFormValue?.("variantId", null);
                     setFormValue?.("priceId", null);
                     setFormValue?.("unitPrice", "");
-                    setFormValue?.("priceMode", "gross");
+                    setFormValue?.("priceMode", resolvePriceMode("gross"));
                     const defaultQuantityUnit =
                       selectedOption?.defaultSalesUnit ??
                       selectedOption?.defaultUnit ??
@@ -2219,7 +2252,9 @@ export function LineItemDialog({
         : []),
       {
         id: "unitPrice",
-        label: t("sales.documents.items.unitPrice", "Unit price"),
+        label: singlePricePresentation
+          ? t("sales.documents.lineDialog.us.priceLabel", "Price")
+          : t("sales.documents.items.unitPrice", "Unit price"),
         type: "custom",
         layout: "half",
         component: ({
@@ -2228,7 +2263,9 @@ export function LineItemDialog({
           setFormValue,
           values,
         }: FieldRenderProps) => {
-          const mode = values?.priceMode === "net" ? "net" : "gross";
+          const mode = resolvePriceMode(
+            values?.priceMode === "net" ? "net" : "gross",
+          );
           const selectedPriceId =
             typeof values?.priceId === "string" ? values.priceId : null;
           const selectedPrice = selectedPriceId
@@ -2276,27 +2313,37 @@ export function LineItemDialog({
                   placeholder="0.00"
                   disabled={isShippedOrderLine}
                 />
-                <Select
-                  value={mode}
-                  disabled={isShippedOrderLine}
-                  onValueChange={(value) => {
-                    const nextMode = value === "net" ? "net" : "gross";
-                    setFormValue?.("priceMode", nextMode);
-                  }}
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gross">
-                      {t("sales.documents.items.priceGross", "Gross")}
-                    </SelectItem>
-                    <SelectItem value="net">
-                      {t("sales.documents.items.priceNet", "Net")}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                {singlePricePresentation ? null : (
+                  <Select
+                    value={mode}
+                    disabled={isShippedOrderLine}
+                    onValueChange={(value) => {
+                      const nextMode = value === "net" ? "net" : "gross";
+                      setFormValue?.("priceMode", nextMode);
+                    }}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gross">
+                        {t("sales.documents.items.priceGross", "Gross")}
+                      </SelectItem>
+                      <SelectItem value="net">
+                        {t("sales.documents.items.priceNet", "Net")}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
+              {usesExternalTaxProvider ? (
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    "sales.documents.lineDialog.us.taxProviderHelper",
+                    "Tax is calculated by the selected tax provider when the line is saved.",
+                  )}
+                </p>
+              ) : null}
               {isCatalogLine && selectedPrice && quantityUnitCode && baseUnitCode ? (
                 unitFactor !== null && convertedAmount !== null ? (
                   <p className="text-xs text-muted-foreground">
@@ -2333,93 +2380,101 @@ export function LineItemDialog({
           );
         },
       } satisfies CrudField,
-      {
-        id: "taxRateId",
-        label: t("sales.documents.items.taxRate", "Tax class"),
-        type: "custom",
-        layout: "half",
-        component: ({
-          value,
-          setValue,
-          setFormValue,
-          values,
-        }: FieldRenderProps) => {
-          const resolvedValue =
-            typeof value === "string" && value.trim().length
-              ? value
-              : findTaxRateIdByValue((values as Record<string, unknown>)?.taxRate as number | null | undefined);
-          const selectedTaxRate = resolvedValue
-            ? taxRateMap.get(resolvedValue) ?? null
-            : null;
-          const handleChange = (
-            event: React.ChangeEvent<HTMLSelectElement>,
-          ) => {
-            const nextId = event.target.value || null;
-            const option = nextId ? (taxRateMap.get(nextId) ?? null) : null;
-            setValue(nextId);
-            const rate = normalizeNumber(option?.rate);
-            setFormValue?.("taxRate", Number.isFinite(rate) ? rate : null);
-          };
-          return (
-            <div className="flex items-center gap-2">
-              <Select
-                value={resolvedValue || undefined}
-                onValueChange={(value) => handleChange({ target: { value } } as React.ChangeEvent<HTMLSelectElement>)}
-                disabled={isShippedOrderLine || !taxRates.length}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      taxRates.length
-                        ? t(
-                            "sales.documents.items.taxRate.none",
-                            "No tax class selected",
-                          )
-                        : t(
-                            "sales.documents.items.taxRate.empty",
-                            "No tax classes available",
-                          )
-                    }
-                  >
-                    {selectedTaxRate
-                      ? `${selectedTaxRate.name}${selectedTaxRate.code ? ` • ${selectedTaxRate.code.toUpperCase()}` : ""}${Number.isFinite(selectedTaxRate.rate) ? ` • ${selectedTaxRate.rate}%` : ""}`
-                      : undefined}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {taxRates.map((rate) => (
-                    <SelectItem key={rate.id} value={rate.id}>
-                      {rate.name}
-                      {rate.code ? ` • ${rate.code.toUpperCase()}` : ""}
-                      {Number.isFinite(rate.rate) ? ` • ${rate.rate}%` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  if (typeof window !== "undefined") {
-                    window.open(
-                      "/backend/config/sales?section=tax-rates",
-                      "_blank",
-                      "noopener,noreferrer",
-                    );
-                  }
-                }}
-                title={t(
-                  "catalog.products.create.taxRates.manage",
-                  "Manage tax classes",
-                )}
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-            </div>
-          );
-        },
-      } satisfies CrudField,
+      // An external tax provider computes the tax from the document after the line is
+      // written, so the per-line tax class is not the user's choice to make; the line keeps
+      // whatever class the product carries so the built in fallback still has something to
+      // work with.
+      ...(usesExternalTaxProvider
+        ? []
+        : [
+            {
+              id: "taxRateId",
+              label: t("sales.documents.items.taxRate", "Tax class"),
+              type: "custom",
+              layout: "half",
+              component: ({
+                value,
+                setValue,
+                setFormValue,
+                values,
+              }: FieldRenderProps) => {
+                const resolvedValue =
+                  typeof value === "string" && value.trim().length
+                    ? value
+                    : findTaxRateIdByValue((values as Record<string, unknown>)?.taxRate as number | null | undefined);
+                const selectedTaxRate = resolvedValue
+                  ? taxRateMap.get(resolvedValue) ?? null
+                  : null;
+                const handleChange = (
+                  event: React.ChangeEvent<HTMLSelectElement>,
+                ) => {
+                  const nextId = event.target.value || null;
+                  const option = nextId ? (taxRateMap.get(nextId) ?? null) : null;
+                  setValue(nextId);
+                  const rate = normalizeNumber(option?.rate);
+                  setFormValue?.("taxRate", Number.isFinite(rate) ? rate : null);
+                };
+                return (
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={resolvedValue || undefined}
+                      onValueChange={(value) => handleChange({ target: { value } } as React.ChangeEvent<HTMLSelectElement>)}
+                      disabled={isShippedOrderLine || !taxRates.length}
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            taxRates.length
+                              ? t(
+                                  "sales.documents.items.taxRate.none",
+                                  "No tax class selected",
+                                )
+                              : t(
+                                  "sales.documents.items.taxRate.empty",
+                                  "No tax classes available",
+                                )
+                          }
+                        >
+                          {selectedTaxRate
+                            ? `${selectedTaxRate.name}${selectedTaxRate.code ? ` • ${selectedTaxRate.code.toUpperCase()}` : ""}${Number.isFinite(selectedTaxRate.rate) ? ` • ${selectedTaxRate.rate}%` : ""}`
+                            : undefined}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {taxRates.map((rate) => (
+                          <SelectItem key={rate.id} value={rate.id}>
+                            {rate.name}
+                            {rate.code ? ` • ${rate.code.toUpperCase()}` : ""}
+                            {Number.isFinite(rate.rate) ? ` • ${rate.rate}%` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        if (typeof window !== "undefined") {
+                          window.open(
+                            "/backend/config/sales?section=tax-rates",
+                            "_blank",
+                            "noopener,noreferrer",
+                          );
+                        }
+                      }}
+                      title={t(
+                        "catalog.products.create.taxRates.manage",
+                        "Manage tax classes",
+                      )}
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  </div>
+                );
+              },
+            } satisfies CrudField,
+          ]),
       {
         id: "quantityUnit",
         label: t("sales.documents.items.quantityUnit", "Unit"),
@@ -2692,11 +2747,14 @@ export function LineItemDialog({
     t,
     taxRateMap,
     taxRates,
+    resolvePriceMode,
     resolveTaxSelection,
     selectPriceAfterRefresh,
     hasTaxMetadata,
     isShippedOrderLine,
     parseUserNumber,
+    singlePricePresentation,
+    usesExternalTaxProvider,
   ]);
 
   const groups = React.useMemo<CrudFormGroup[]>(() => {
@@ -2754,10 +2812,11 @@ export function LineItemDialog({
     nextForm.quantity = initialLine.quantity.toString();
     nextForm.quantityUnit = normalizeUnitCode(initialLine.quantityUnit) ?? null;
     const metaMode = metaRec?.priceMode;
-    const resolvedPriceMode =
+    const resolvedPriceMode = resolvePriceMode(
       metaMode === "net" || metaMode === "gross"
         ? metaMode
-        : (initialLine.priceMode ?? "gross");
+        : (initialLine.priceMode ?? "gross"),
+    );
     nextForm.unitPrice =
       resolvedPriceMode === "net"
         ? initialLine.unitPriceNet.toString()
@@ -2783,7 +2842,9 @@ export function LineItemDialog({
     nextForm.taxRateId =
       metaTaxRateId ??
       fallbackTaxRateId ??
-      (defaultTaxRateRef.current ? defaultTaxRateRef.current.id : null);
+      (defaultTaxRateRef.current && !usesExternalTaxProvider
+        ? defaultTaxRateRef.current.id
+        : null);
     if (!Number.isFinite(nextForm.taxRate) && nextForm.taxRateId) {
       const matched = taxRatesRef.current.find(
         (rate) => rate.id === nextForm.taxRateId,
@@ -2797,8 +2858,9 @@ export function LineItemDialog({
     let resolvedVariantOption: VariantOption | null = null;
     if (metaRec) {
       const metaRecord = metaRec;
-      const mode = metaRecord.priceMode;
-      if (mode === "net" || mode === "gross") {
+      const storedMode = metaRecord.priceMode;
+      if (storedMode === "net" || storedMode === "gross") {
+        const mode = resolvePriceMode(storedMode);
         nextForm.priceMode = mode;
         nextForm.unitPrice =
           mode === "net"
@@ -3034,6 +3096,8 @@ export function LineItemDialog({
     loadVariantOptions,
     open,
     resetForm,
+    resolvePriceMode,
+    usesExternalTaxProvider,
   ]);
 
   const handleSubmitForm = React.useCallback(

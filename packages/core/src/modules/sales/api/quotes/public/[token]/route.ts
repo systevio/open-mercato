@@ -87,11 +87,14 @@ export async function GET(req: Request, ctx: { params: { token: string } }) {
         grandTotalGrossAmount: quote.grandTotalGrossAmount,
         validUntil: quote.validUntil ?? null,
         taxStatus: (quote as { taxStatus?: string | null }).taxStatus ?? null,
+        taxInfo: (quote as { taxInfo?: unknown }).taxInfo ?? null,
       },
       lines.map((line) => ({
+        id: line.id,
         currencyCode: line.currencyCode,
         unitPriceNet: line.unitPriceNet,
         unitPriceGross: line.unitPriceGross,
+        taxAmount: line.taxAmount,
         totalNetAmount: line.totalNetAmount,
         totalGrossAmount: line.totalGrossAmount,
       })),
@@ -185,13 +188,23 @@ export async function GET(req: Request, ctx: { params: { token: string } }) {
 const quoteDisplaySchema = z.object({
   singlePricePlusTax: z.boolean(),
   validUntil: z.string().nullable(),
+  subtotalLabel: z.string(),
   subtotal: z.string().nullable(),
+  discountLabel: z.string(),
   discountTotal: z.string().nullable(),
   taxTotal: z.string().nullable(),
+  totalLabel: z.string(),
   grandTotal: z.string().nullable(),
   taxLabel: z.string(),
   taxNote: z.string().nullable(),
-  lines: z.array(z.object({ unitPrice: z.string().nullable(), total: z.string().nullable() })),
+  lines: z.array(
+    z.object({
+      unitPrice: z.string().nullable(),
+      total: z.string().nullable(),
+      tax: z.string().nullable(),
+      totalIncludingTax: z.string().nullable(),
+    }),
+  ),
 });
 
 const publicQuoteResponseSchema = z.object({

@@ -68,6 +68,32 @@ function reportTaxProviderFailure(params: {
  */
 const TAX_RECONCILIATION_TOLERANCE = 0.00005
 
+const DECLINE_MESSAGE = 'The tax provider declined the document.'
+
+/**
+ * Wide enough for any decline reason a provider writes as a sentence, narrow
+ * enough that the failure record stays a label rather than a payload — the
+ * detail page renders it inline and the value is read far more often than it is
+ * written.
+ */
+const FAILURE_MESSAGE_MAX_LENGTH = 200
+
+function capLength(text: string, max: number): string {
+  return text.length <= max ? text : `${text.slice(0, max - 1)}…`
+}
+
+/**
+ * A decline says why: "no ship from address", "country not enabled". That reason
+ * is the only thing the merchant can act on, so it travels in the failure record
+ * too and not just in the provider's own messages — the banner shows the failure
+ * first.
+ */
+function declineMessage(providerMessages: TaxProviderMessage[]): string {
+  const reason = providerMessages.map((message) => message.text.trim()).find((text) => text !== '')
+  if (!reason) return DECLINE_MESSAGE
+  return capLength(`The tax provider declined the document: ${reason}`, FAILURE_MESSAGE_MAX_LENGTH)
+}
+
 export type TaxFailureCode =
   | 'provider_error'
   | 'timeout'
@@ -394,6 +420,10 @@ export async function runTaxStage(params: {
   }
 
   const messages: TaxProviderMessage[] = []
+  // Only ever filled on a path that discards the provider's result. When the
+  // result survives, `buildTaxInfo` already reads its messages, and copying them
+  // here would persist each one twice.
+  let discardedProviderMessages: TaxProviderMessage[] = []
   let failure: TaxInfo['failure'] = null
   let providerKey = tax.selection.providerKey || DEFAULT_TAX_PROVIDER_KEY
   let provider = getTaxProvider(providerKey)
@@ -477,7 +507,7 @@ export async function runTaxStage(params: {
   } else if (call.value === null) {
     failure = failure ?? {
       code: 'unsupported',
-      message: 'The tax provider declined the document.',
+      message: DECLINE_MESSAGE,
       at: new Date().toISOString(),
       providerKey,
     }
@@ -497,9 +527,13 @@ export async function runTaxStage(params: {
         code: 'invalid_result',
       })
     } else if (normalized.status === 'unsupported') {
+      // The amounts go, the explanation stays: a decline is the one outcome the
+      // merchant is expected to fix, and the provider's own codes
+      // (`ship_from_missing`, `country_not_enabled`) are what name the fix.
+      discardedProviderMessages = normalized.messages
       failure = failure ?? {
         code: 'unsupported',
-        message: 'The tax provider declined the document.',
+        message: declineMessage(discardedProviderMessages),
         at: new Date().toISOString(),
         providerKey,
       }
@@ -511,6 +545,10 @@ export async function runTaxStage(params: {
       status = normalized.status === 'exempt' ? 'exempt' : 'calculated'
     }
   }
+
+  // Provider first, core second: the reason precedes the outcome it caused, and
+  // a reader who stops at the first entry still reads the actionable one.
+  messages.push(...discardedProviderMessages)
 
   if (failure) {
     messages.push({

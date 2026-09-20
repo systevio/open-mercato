@@ -126,6 +126,16 @@ export function TaxBreakdownSection({
     ? t(`sales.documents.detail.tax.failure.${failure.code ?? 'provider_error'}`, failure.message ?? '')
     : null
 
+  // The line above is translated per failure code, so it can only ever say
+  // "declined" — never why. The provider's own messages carry the reason the
+  // merchant has to act on, and they are shown verbatim because no locale file
+  // can hold a third party's vocabulary. Only the core entry is dropped, and it
+  // is recognised by its text rather than its code: a provider is free to label
+  // its own reason `unsupported` too, and that reason must still be read.
+  const providerMessages = (taxInfo?.messages ?? []).filter(
+    (message) => Boolean(message?.text?.trim()) && message?.text !== failure?.message
+  )
+
   return (
     <div className={cn('space-y-3', className)}>
       {status === 'fallback' && failure ? (
@@ -144,6 +154,11 @@ export function TaxBreakdownSection({
                     )}
               </p>
               {failureText ? <p className="text-xs">{failureText}</p> : null}
+              {providerMessages.map((message, index) => (
+                <p key={`${message.code ?? 'message'}-${index}`} className="text-xs">
+                  {message.text}
+                </p>
+              ))}
               {calculatedAtLabel ? (
                 <p className="text-xs">
                   {t('sales.documents.detail.tax.calculatedAt', 'Calculated')}: {calculatedAtLabel}
