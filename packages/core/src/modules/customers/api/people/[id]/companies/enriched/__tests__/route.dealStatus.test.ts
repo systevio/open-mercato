@@ -138,5 +138,47 @@ describe('GET /api/customers/people/[id]/companies/enriched deal status vocabula
       valueCurrency: 'PLN',
     })
     expect(body.items[0].clv).toEqual({ amount: 700, currency: 'PLN' })
+    expect(body.items[0].clvByCurrency).toEqual([
+      { currencyCode: 'PLN', amount: 700, count: 2, invalidAmountCount: 0 },
+    ])
+  })
+
+  it('does not collapse mixed or unknown won-deal currencies into a fabricated total', async () => {
+    const company = {
+      id: companyId,
+      displayName: 'Acme Corp',
+      status: null,
+      lifecycleStage: null,
+      temperature: null,
+      renewalQuarter: null,
+    }
+    mockFindWithDecryption.mockReset()
+    mockFindWithDecryption
+      .mockResolvedValueOnce([{ id: 'link-1', isPrimary: true, company }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { company, deal: { ...buildDeal('pln', 'win', '200', '2026-01-10T00:00:00.000Z'), valueCurrency: 'PLN' } },
+        { company, deal: { ...buildDeal('usd', 'won', '50', '2026-01-11T00:00:00.000Z'), valueCurrency: 'USD' } },
+        { company, deal: { ...buildDeal('unknown', 'win', '25', '2026-01-12T00:00:00.000Z'), valueCurrency: null } },
+      ])
+      .mockResolvedValueOnce([])
+
+    const response = await GET(
+      new Request(`http://localhost/api/customers/people/${personId}/companies/enriched`),
+      { params: { id: personId } },
+    )
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.items[0].clv).toBeNull()
+    expect(body.items[0].clvByCurrency).toEqual([
+      { currencyCode: 'PLN', amount: 200, count: 1, invalidAmountCount: 0 },
+      { currencyCode: 'USD', amount: 50, count: 1, invalidAmountCount: 0 },
+      { currencyCode: null, amount: 25, count: 1, invalidAmountCount: 0 },
+    ])
   })
 })

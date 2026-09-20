@@ -38,6 +38,8 @@ import {
 import { isRecord } from '@open-mercato/shared/lib/utils'
 import { renderProviderFieldInput } from './ProviderFieldInput'
 import { createLogger } from '@open-mercato/shared/lib/logger'
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 
 const logger = createLogger('sales')
 
@@ -340,6 +342,7 @@ function createShippingProviderSettingsRenderer(params: {
 
 export function ShippingMethodsSettings() {
   const t = useT()
+  const displayProfile = useDisplayProfile()
   const scopeVersion = useOrganizationScopeVersion()
   const { confirm, ConfirmDialogElement } = useConfirmDialog()
   const providers = React.useMemo(() => listShippingProviders(), [])
@@ -598,7 +601,15 @@ export function ShippingMethodsSettings() {
       header: translations.table.rate,
       cell: ({ row }) => (
         <span className="text-sm">
-          {row.original.baseRateGross.toFixed(2)} {row.original.currencyCode ?? ''}
+          {row.original.currencyCode
+            ? formatMoney(row.original.baseRateGross, row.original.currencyCode, displayProfile, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })
+            : formatNumber(row.original.baseRateGross, displayProfile, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
         </span>
       ),
     },
@@ -620,7 +631,7 @@ export function ShippingMethodsSettings() {
         </span>
       ),
     },
-  ], [translations])
+  ], [displayProfile, translations])
 
   const handleSubmit = React.useCallback(async (values: ShippingFormValues) => {
     if (!dialog) return

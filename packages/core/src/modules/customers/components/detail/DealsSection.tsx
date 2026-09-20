@@ -19,6 +19,9 @@ import { E } from '#generated/entities.ids.generated'
 import type { DealCustomFieldEntry, DealSummary, SectionAction, TabEmptyStateConfig, Translator } from './types'
 import { createTranslatorWithFallback } from '@open-mercato/shared/lib/i18n/translate'
 import { formatDate } from './utils'
+import { formatCurrency } from './utils'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { DealDialog } from './DealDialog'
 import type { DealFormBaseValues, DealFormSubmitPayload } from './DealForm'
 import { generateTempId } from '@open-mercato/core/modules/customers/lib/detailHelpers'
@@ -280,18 +283,21 @@ function formatValueLabel(
   currency: string | null,
   emptyLabel: string,
   locale?: string,
+  profile?: DisplayProfile | null,
 ): string {
   if (typeof amount === 'number') {
-    const formatter = new Intl.NumberFormat(locale, {
-      style: currency ? 'currency' : 'decimal',
-      currency: currency ?? undefined,
-      maximumFractionDigits: 2,
-    })
-    try {
-      return formatter.format(amount)
-    } catch {
-      return currency ? `${amount} ${currency}` : `${amount}`
+    if (!profile) {
+      try {
+        return new Intl.NumberFormat(locale, {
+          style: currency ? 'currency' : 'decimal',
+          currency: currency ?? undefined,
+          maximumFractionDigits: 2,
+        }).format(amount)
+      } catch {
+        return currency ? `${amount} ${currency}` : `${amount}`
+      }
     }
+    return formatCurrency(amount, currency, locale, profile)
   }
   return emptyLabel
 }
@@ -323,6 +329,7 @@ export function DealsSection({
 }: DealsSectionProps) {
   const tHook = useT()
   const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const { confirm, ConfirmDialogElement } = useConfirmDialog()
   const fallbackTranslator = React.useMemo<Translator>(() => createTranslatorWithFallback(tHook), [tHook])
   const t: Translator = React.useMemo(() => translator ?? fallbackTranslator, [translator, fallbackTranslator])
@@ -616,8 +623,10 @@ export function DealsSection({
           'This deal has no other linked entities. If you unlink it later, it will become unreachable.',
         ),
         contextEntityId: scope?.entityId,
+        locale,
+        displayProfile,
       }),
-    [scope?.entityId, t],
+    [displayProfile, locale, scope?.entityId, t],
   )
 
   const handleLinkConfirm = React.useCallback(
@@ -969,7 +978,7 @@ export function DealsSection({
           ) : null}
           <div className="space-y-4">
             {sortedDeals.map((deal) => {
-          const valueLabel = formatValueLabel(deal.valueAmount, deal.valueCurrency ?? null, emptyLabel, locale)
+          const valueLabel = formatValueLabel(deal.valueAmount, deal.valueCurrency ?? null, emptyLabel, locale, displayProfile)
           const expectedLabel = deal.expectedCloseAt ? formatDate(deal.expectedCloseAt, locale) ?? emptyLabel : emptyLabel
           const probabilityLabel =
             typeof deal.probability === 'number' ? `${deal.probability}%` : emptyLabel

@@ -27,6 +27,7 @@ import {
 } from '../../../../../lib/personCompanyLinkTable'
 import { isOpenDealStatus, isWonDealStatus } from '../../../../../lib/dealStatus'
 import { createLogger } from '@open-mercato/shared/lib/logger'
+import { groupCurrencySubtotals } from '../../../../../lib/currencySubtotals'
 
 const logger = createLogger('customers')
 
@@ -103,6 +104,12 @@ export const openApi: OpenApiRouteDoc = {
                   .nullable(),
                 lastContactAt: z.string().nullable(),
                 clv: z.object({ amount: z.number(), currency: z.string() }).nullable(),
+                clvByCurrency: z.array(z.object({
+                  currencyCode: z.string().nullable(),
+                  amount: z.number(),
+                  count: z.number().int().nonnegative(),
+                  invalidAmountCount: z.number().int().nonnegative(),
+                })),
                 status: z.string().nullable(),
                 lifecycleStage: z.string().nullable(),
                 temperature: z.string().nullable(),
@@ -291,20 +298,11 @@ export async function GET(req: Request, ctx: { params?: { id?: string } }) {
       const wonDeals = companyDealLinks
         .map((dcl) => dcl.deal as CustomerDeal)
         .filter((deal) => isWonDealStatus(deal.status) && !deal.deletedAt)
-      let clv: { amount: number; currency: string } | null = null
-      if (wonDeals.length > 0) {
-        const currencies = new Map<string, number>()
-        for (const deal of wonDeals) {
-          if (deal.valueAmount) {
-            const currency = deal.valueCurrency ?? 'USD'
-            currencies.set(currency, (currencies.get(currency) ?? 0) + parseFloat(deal.valueAmount))
-          }
-        }
-        if (currencies.size > 0) {
-          const [currency, amount] = currencies.entries().next().value!
-          clv = { amount, currency }
-        }
-      }
+      const clvByCurrency = groupCurrencySubtotals(wonDeals)
+      const soleClv = clvByCurrency.length === 1 ? clvByCurrency[0] : null
+      const clv = soleClv?.currencyCode && soleClv.invalidAmountCount < soleClv.count
+        ? { amount: soleClv.amount, currency: soleClv.currencyCode }
+        : null
 
       return {
         linkId: link.id,
@@ -348,6 +346,7 @@ export async function GET(req: Request, ctx: { params?: { id?: string } }) {
           : null,
         lastContactAt: lastInteraction?.occurredAt?.toISOString() ?? null,
         clv,
+        clvByCurrency,
         status: company.status ?? null,
         lifecycleStage: company.lifecycleStage ?? null,
         temperature: company.temperature ?? null,

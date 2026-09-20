@@ -31,6 +31,7 @@ import {
 import { getEntityRegistryEntry } from '../lib/entityRegistry'
 import { isDocumentEntityRegistryModuleEnabled } from '../lib/entityRegistryAvailability.server'
 import { dedupeTemplateLinkSlots, prepareTemplateRender } from '../lib/templateInstantiation'
+import { resolveMarketDisplayProfile } from '../lib/marketProfile'
 import { assertNoPostCreateDocumentDependents } from './aggregate'
 import {
   bufferDocumentMutationSideEffects,
@@ -318,6 +319,7 @@ const instantiateDocumentCommand: CommandHandler<
     const template = await loadTemplate(requestEm, input)
     const sourceRequest = ctx.request
     if (!sourceRequest) throw new Error('[internal] template instantiation requires the source request')
+    const displayProfile = await resolveMarketDisplayProfile(ctx.container, scope)
     // The authoritative render performs up to 20 loopback HTTP verifications,
     // so it must complete before the transaction acquires aggregate locks. It
     // enforces the preview-digest CAS against caller-controlled values, and
@@ -336,6 +338,7 @@ const instantiateDocumentCommand: CommandHandler<
       userFeatures: previewFeatures,
       expectedDigest: input.previewDigest,
       rejectUnresolved: true,
+      displayProfile,
     })
     const uniqueLinkSlots = dedupeTemplateLinkSlots(prepared.verifiedSlots)
     const em = resolveDocumentsCommandEntityManager(ctx)

@@ -30,7 +30,8 @@ import { z } from 'zod'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Badge } from '@open-mercato/ui/primitives/badge'
 import { formatCurrency } from '@open-mercato/ui/utils/format'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { InjectionSpot } from '@open-mercato/ui/backend/injection/InjectionSpot'
 import { extensionPoints } from '@open-mercato/core/modules/staff/extension-points'
 import { registerComponent } from '@open-mercato/shared/modules/widgets/component-registry'
@@ -67,12 +68,14 @@ const EM_DASH = '—'
 const REPORT_ENTITY_ID = 'staff:staff_time_report'
 
 function useMoney(currencyCode: string | null) {
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   return React.useCallback(
     (amount: number | null | undefined) => {
       if (amount === null || amount === undefined) return EM_DASH
-      return formatCurrency(amount, currencyCode ?? undefined) ?? EM_DASH
+      return formatCurrency(amount, currencyCode ?? undefined, locale, displayProfile) ?? EM_DASH
     },
-    [currencyCode],
+    [currencyCode, displayProfile, locale],
   )
 }
 

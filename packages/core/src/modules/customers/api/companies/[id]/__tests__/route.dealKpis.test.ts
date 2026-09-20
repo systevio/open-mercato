@@ -232,4 +232,25 @@ describe('GET /api/customers/companies/[id] — deal KPI status vocabulary (#466
     expect(kpis.completedDealsCount).toBe(0)
     expect(kpis.ltvValue).toBeNull()
   })
+
+  it('groups currencies, invalid amounts, and unknown denominations without conversion', async () => {
+    mockCompany()
+    mockDealLinks([
+      { id: 'pln', status: 'open', valueAmount: '100', valueCurrency: 'PLN' },
+      { id: 'usd', status: 'open', valueAmount: '25', valueCurrency: 'USD' },
+      { id: 'unknown', status: 'open', valueAmount: '10', valueCurrency: null },
+      { id: 'invalid', status: 'open', valueAmount: 'invalid', valueCurrency: 'EUR' },
+    ])
+
+    const kpis = await fetchKpis()
+
+    expect(kpis.activeDealsValue).toBeNull()
+    expect(kpis.dealCurrency).toBeNull()
+    expect(kpis.activeDealsByCurrency).toEqual([
+      { currencyCode: 'EUR', amount: 0, count: 1, invalidAmountCount: 1 },
+      { currencyCode: 'PLN', amount: 100, count: 1, invalidAmountCount: 0 },
+      { currencyCode: 'USD', amount: 25, count: 1, invalidAmountCount: 0 },
+      { currencyCode: null, amount: 10, count: 1, invalidAmountCount: 0 },
+    ])
+  })
 })

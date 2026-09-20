@@ -8,11 +8,14 @@ import { Spinner } from '@open-mercato/ui/primitives/spinner'
 import { ErrorMessage } from '@open-mercato/ui/backend/detail'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
+import { formatWarrantyAmount } from '../../lib/displayMoney'
 
 type VendorRecoveryClaim = {
   id: string
   claimType: string | null
   status: string | null
+  currencyCode: string | null
 }
 
 type VendorRecoverySuggestion = {
@@ -72,6 +75,7 @@ export function VendorRecoverySuggestionsPanel({
   onGenerateSupplierRecovery,
 }: VendorRecoverySuggestionsPanelProps) {
   const t = useT()
+  const displayProfile = useDisplayProfile()
   const [suggestions, setSuggestions] = React.useState<VendorRecoverySuggestion[]>([])
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -184,7 +188,8 @@ export function VendorRecoverySuggestionsPanel({
                         <span>
                           {' '}
                           {t('warranty_claims.vendorRecoverySuggestions.estimatedRecovery', 'Estimated recovery: {amount}', {
-                            amount: suggestion.estimatedRecovery,
+                            amount: formatWarrantyAmount(suggestion.estimatedRecovery, claim.currencyCode, displayProfile)
+                              ?? suggestion.estimatedRecovery,
                           })}
                         </span>
                       ) : null}

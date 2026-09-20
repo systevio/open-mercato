@@ -10,6 +10,7 @@ import { formatRelativeTime } from '@open-mercato/shared/lib/time'
 import type { NotificationRendererProps } from '@open-mercato/shared/modules/notifications/types'
 import { formatMoney } from '../../components/documents/lineItemUtils'
 import { useSalesDocumentTotals } from './useSalesDocumentTotals'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 
 function normalizeTotal(value?: string | null): string | null {
   if (!value) return null
@@ -28,6 +29,7 @@ export function SalesQuoteCreatedRenderer({
 }: NotificationRendererProps) {
   const t = useT()
   const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const router = useRouter()
   const [executing, setExecuting] = React.useState(false)
   const isUnread = notification.status === 'unread'
@@ -39,7 +41,7 @@ export function SalesQuoteCreatedRenderer({
 
   const currentTotal =
     totals && typeof totals.grandTotalGrossAmount === 'number'
-      ? formatMoney(totals.grandTotalGrossAmount, totals.currencyCode)
+      ? formatMoney(totals.grandTotalGrossAmount, totals.currencyCode, locale, displayProfile)
       : fallbackTotal
 
   const viewAction = actions.find((action) => action.id === 'view') ?? actions[0] ?? null

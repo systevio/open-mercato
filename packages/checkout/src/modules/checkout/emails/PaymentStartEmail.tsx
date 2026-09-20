@@ -5,6 +5,7 @@ export type PaymentStartEmailProps = {
   firstName: string
   amount: string
   currencyCode: string
+  formattedAmount?: string
   linkTitle: string
   bodyHtml?: string | null
   copy: {
@@ -25,7 +26,8 @@ const styles = {
   hint: { fontSize: 12, color: '#9ca3af', margin: '16px 0 0' } as React.CSSProperties,
 }
 
-export function PaymentStartEmail({ amount, currencyCode, bodyHtml, copy }: PaymentStartEmailProps) {
+export function PaymentStartEmail({ amount, currencyCode, formattedAmount, bodyHtml, copy }: PaymentStartEmailProps) {
+  const displayedAmount = formattedAmount ?? `${amount} ${currencyCode}`.trim()
   return (
     <Html>
       <Head><title>{copy.title}</title></Head>
@@ -39,7 +41,7 @@ export function PaymentStartEmail({ amount, currencyCode, bodyHtml, copy }: Paym
             ) : (
               <>
                 <Text style={styles.paragraph}>{copy.greeting}</Text>
-                <Text style={styles.amountStyle}>{amount} {currencyCode}</Text>
+                <Text style={styles.amountStyle}>{displayedAmount}</Text>
                 <Text style={styles.paragraph}>{copy.message}</Text>
               </>
             )}

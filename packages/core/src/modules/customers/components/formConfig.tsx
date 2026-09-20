@@ -2143,14 +2143,19 @@ export type CompanyOverview = {
   plannedActivitiesPreview?: InteractionSummary[]
   kpis?: {
     activeDealsCount: number
+    /** @deprecated Use activeDealsByCurrency. */
     activeDealsValue: number | null
+    /** @deprecated Use each grouped subtotal's currencyCode. */
     dealCurrency: string | null
+    activeDealsByCurrency?: CompanyCurrencySubtotal[]
     activityCount: number
     activityTrend: {
       value: number
       direction: 'up' | 'down' | 'unchanged'
     } | null
+    /** @deprecated Use wonDealsByCurrency. */
     ltvValue: number | null
+    wonDealsByCurrency?: CompanyCurrencySubtotal[]
     completedDealsCount: number
     clientTenureYears: number | null
   }
@@ -2160,6 +2165,13 @@ export type CompanyOverview = {
     name?: string | null
     email?: string | null
   } | null
+}
+
+export type CompanyCurrencySubtotal = {
+  currencyCode: string | null
+  amount: number
+  count: number
+  invalidAmountCount: number
 }
 
 export type PersonOverview = {

@@ -38,7 +38,7 @@ const mockTranslate = (
 
 let mockSearchParams = new URLSearchParams('')
 
-jest.mock('@open-mercato/shared/lib/i18n/context', () => ({ useT: () => mockTranslate }))
+jest.mock('@open-mercato/shared/lib/i18n/context', () => ({ useLocale: () => 'en-US', useT: () => mockTranslate }))
 
 jest.mock('@open-mercato/shared/lib/frontend/useOrganizationScope', () => ({
   useOrganizationScopeVersion: () => 1,

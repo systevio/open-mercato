@@ -25,6 +25,8 @@ import { Button } from '@open-mercato/ui/primitives/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@open-mercato/ui/primitives/card'
 import { IconButton } from '@open-mercato/ui/primitives/icon-button'
 import { Spinner } from '@open-mercato/ui/primitives/spinner'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
+import { formatCheckoutMoney } from '../../../../lib/displayMoney'
 
 type DetailPayload = {
   transaction: {
@@ -75,15 +77,6 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   )
 }
 
-function formatAmount(amount: number | null | undefined, currencyCode: string): string {
-  const resolved = typeof amount === 'number' ? amount : 0
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: currencyCode }).format(resolved)
-  } catch {
-    return `${resolved.toFixed(2)} ${currencyCode}`
-  }
-}
-
 function formatDateTime(value: string | null | undefined): string {
   if (!value) return '—'
   const parsed = new Date(value)
@@ -130,6 +123,7 @@ function buildSectionJson(section: SectionDefinition): string {
 
 export default function CheckoutTransactionDetailPage({ params }: { params: Promise<{ id: string }> | { id: string } }) {
   const t = useT()
+  const displayProfile = useDisplayProfile()
   const [payload, setPayload] = React.useState<DetailPayload | null>(null)
   const [transactionId, setTransactionId] = React.useState('')
   const [isCapturing, setIsCapturing] = React.useState(false)
@@ -209,8 +203,8 @@ export default function CheckoutTransactionDetailPage({ params }: { params: Prom
     const paymentRows: SectionRow[] = [
       {
         label: t('checkout.admin.transactionDetail.fields.amount'),
-        plainValue: formatAmount(payload.transaction.amount, payload.transaction.currencyCode),
-        value: <span className="font-semibold">{formatAmount(payload.transaction.amount, payload.transaction.currencyCode)}</span>,
+        plainValue: formatCheckoutMoney(payload.transaction.amount, payload.transaction.currencyCode, displayProfile),
+        value: <span className="font-semibold">{formatCheckoutMoney(payload.transaction.amount, payload.transaction.currencyCode, displayProfile)}</span>,
       },
       {
         label: t('checkout.admin.transactionDetail.fields.status'),
@@ -367,7 +361,7 @@ export default function CheckoutTransactionDetailPage({ params }: { params: Prom
         emptyMessage: t('checkout.admin.transactionDetail.emptyCustomFields'),
       },
     ]
-  }, [canCapturePayment, handleCapturePayment, isCapturing, payload, t, transactionId])
+  }, [canCapturePayment, displayProfile, handleCapturePayment, isCapturing, payload, t, transactionId])
 
   const copyToClipboard = React.useCallback(async (text: string, successMessage: string) => {
     try {

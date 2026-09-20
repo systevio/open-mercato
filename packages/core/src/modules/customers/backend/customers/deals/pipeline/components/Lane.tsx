@@ -23,7 +23,7 @@ export type LaneStage = {
 export type LaneAggregateProp = {
   count: number
   totalInBaseCurrency: number
-  byCurrency: Array<{ currency: string; total: number; count: number }>
+  byCurrency: Array<{ currency: string | null; total: number; count: number }>
   baseCurrencyCode: string | null
   /** `true` when every currency in `byCurrency` was convertible to the base currency. */
   convertedAll: boolean
@@ -87,7 +87,7 @@ function compactCurrency(amount: number): string {
   return String(Math.round(amount))
 }
 
-type CurrencyRow = { currency: string; total: number; count: number }
+type CurrencyRow = { currency: string | null; total: number; count: number }
 
 type LaneStats = {
   count: number
@@ -132,12 +132,12 @@ function buildLaneStats(deals: DealCardData[], aggregate?: LaneAggregateProp | n
       missingRateCurrencies: aggregate.missingRateCurrencies,
     }
   }
-  const totalsByCurrency = new Map<string, { total: number; count: number }>()
+  const totalsByCurrency = new Map<string | null, { total: number; count: number }>()
   for (const deal of deals) {
     if (typeof deal.valueAmount !== 'number' || !Number.isFinite(deal.valueAmount)) continue
-    const code = deal.valueCurrency && deal.valueCurrency.length === 3
+    const code = deal.valueCurrency && /^[A-Za-z]{3}$/.test(deal.valueCurrency.trim())
       ? deal.valueCurrency.toUpperCase()
-      : 'USD'
+      : null
     const entry = totalsByCurrency.get(code) ?? { total: 0, count: 0 }
     entry.total += deal.valueAmount
     entry.count += 1
@@ -168,7 +168,9 @@ function buildLaneStats(deals: DealCardData[], aggregate?: LaneAggregateProp | n
     // We don't have rates client-side; mark as "not converted" only when there are
     // multiple currencies so the popover can show a "configure FX rates" hint.
     convertedAll: rows.length === 1,
-    missingRateCurrencies: rows.length > 1 ? rows.slice(1).map((row) => row.currency) : [],
+    missingRateCurrencies: rows.length > 1
+      ? rows.slice(1).flatMap((row) => row.currency ? [row.currency] : [])
+      : [],
   }
 }
 

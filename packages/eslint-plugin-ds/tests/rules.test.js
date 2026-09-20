@@ -250,6 +250,37 @@ test('no-legacy-alert-variant', () => {
   })
 })
 
+test('no-bespoke-money-format', () => {
+  ruleTester.run('no-bespoke-money-format', plugin.rules['no-bespoke-money-format'], {
+    valid: [
+      {
+        code: `const label = formatMoney(amount, currencyCode, displayProfile)`,
+        filename: '/repo/packages/core/src/modules/example/components/Price.tsx',
+      },
+      {
+        code: `const formatter = new Intl.NumberFormat(locale, { style: 'currency', currency })`,
+        filename: '/repo/packages/shared/src/lib/display/money.ts',
+      },
+      {
+        code: `const currencyCode = record.currencyCode ?? 'USD'`,
+        filename: '/repo/packages/core/src/modules/example/__tests__/money.test.ts',
+      },
+    ],
+    invalid: [
+      {
+        code: `const formatter = new Intl.NumberFormat(locale, { style: 'currency', currency })`,
+        filename: '/repo/packages/core/src/modules/example/components/Price.tsx',
+        errors: [{ messageId: 'bespokeFormatter' }],
+      },
+      {
+        code: `const currencyCode = record.currencyCode ?? 'USD'`,
+        filename: '/repo/packages/core/src/modules/example/components/Price.tsx',
+        errors: [{ messageId: 'literalFallback' }],
+      },
+    ],
+  })
+})
+
 test('no-hardcoded-status-colors', () => {
   ruleTester.run('no-hardcoded-status-colors', plugin.rules['no-hardcoded-status-colors'], {
     valid: [

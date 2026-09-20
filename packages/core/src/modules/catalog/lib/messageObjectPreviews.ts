@@ -3,6 +3,8 @@ import { findOneWithDecryption, findWithDecryption } from '@open-mercato/shared/
 import { resolveTranslations } from '@open-mercato/shared/lib/i18n/server'
 import type { ObjectPreviewData } from '@open-mercato/shared/modules/messages/types'
 import type { EntityManager } from '@mikro-orm/postgresql'
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
 import { CatalogProduct, CatalogProductCategory, CatalogProductPrice, CatalogProductVariant } from '../data/entities'
 
 type PreviewContext = {
@@ -10,24 +12,46 @@ type PreviewContext = {
   organizationId?: string | null
 }
 
+async function resolvePreviewDisplayProfile(
+  resolve: <T>(name: string) => T,
+  ctx: PreviewContext,
+): Promise<DisplayProfile | null> {
+  if (!ctx.organizationId) return null
+  try {
+    const resolver = resolve<{
+      resolve(scope: { tenantId: string; organizationId: string }): Promise<DisplayProfile | null>
+    }>('displayProfileResolver')
+    return await resolver.resolve({ tenantId: ctx.tenantId, organizationId: ctx.organizationId })
+  } catch {
+    return null
+  }
+}
+
 async function resolveEm() {
   const { resolve } = await createRequestContainer()
   return resolve('em') as EntityManager
 }
 
-function formatVariantPrice(amount: string | null | undefined, currencyCode: string | null | undefined): string | null {
+export function formatVariantPrice(
+  amount: string | null | undefined,
+  currencyCode: string | null | undefined,
+  profile?: DisplayProfile | null,
+): string | null {
   if (!amount) return null
   const value = Number(amount)
   if (!Number.isFinite(value)) return currencyCode ? `${currencyCode.toUpperCase()} ${amount}` : amount
-  if (!currencyCode) return value.toLocaleString()
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: currencyCode.toUpperCase(),
-    }).format(value)
-  } catch {
-    return `${currencyCode.toUpperCase()} ${value.toLocaleString()}`
+  if (!profile) {
+    if (!currencyCode) return value.toLocaleString()
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: currencyCode.toUpperCase(),
+      }).format(value)
+    } catch {
+      return `${currencyCode.toUpperCase()} ${value.toLocaleString()}`
+    }
   }
+  return currencyCode ? formatMoney(value, currencyCode, profile) : formatNumber(value, profile)
 }
 
 export async function loadCatalogProductPreview(
@@ -81,7 +105,9 @@ export async function loadCatalogVariantPreview(
     return { title: defaultTitle, subtitle: entityId }
   }
 
-  const em = await resolveEm()
+  const { resolve } = await createRequestContainer()
+  const em = resolve('em') as EntityManager
+  const profile = await resolvePreviewDisplayProfile(resolve, ctx)
   const variant = await findOneWithDecryption(
     em,
     CatalogProductVariant,
@@ -120,6 +146,7 @@ export async function loadCatalogVariantPreview(
   const priceLabel = formatVariantPrice(
     firstPrice?.unitPriceGross ?? firstPrice?.unitPriceNet ?? null,
     firstPrice?.currencyCode ?? null,
+    profile,
   )
 
   const metadata: Record<string, string> = {}

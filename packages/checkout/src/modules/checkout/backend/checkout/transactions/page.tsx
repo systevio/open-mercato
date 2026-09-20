@@ -10,6 +10,8 @@ import { DataTable } from '@open-mercato/ui/backend/DataTable'
 import { RowActions } from '@open-mercato/ui/backend/RowActions'
 import { apiCall, readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { Badge } from '@open-mercato/ui/primitives/badge'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
+import { formatCheckoutMoney } from '../../../lib/displayMoney'
 
 type TransactionRow = {
   id: string
@@ -48,17 +50,9 @@ function formatDate(value: string | null | undefined): string {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString()
 }
 
-function formatAmount(amount: number | null | undefined, currencyCode: string): string {
-  const resolved = typeof amount === 'number' ? amount : 0
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: currencyCode }).format(resolved)
-  } catch {
-    return `${resolved.toFixed(2)} ${currencyCode}`
-  }
-}
-
 export default function CheckoutTransactionsPage() {
   const t = useT()
+  const displayProfile = useDisplayProfile()
   const searchParams = useSearchParams()
   const initialLinkId = React.useMemo(() => {
     const raw = searchParams.get('linkId')
@@ -204,7 +198,7 @@ export default function CheckoutTransactionsPage() {
       {
         accessorKey: 'amount',
         header: t('checkout.admin.transactions.columns.amount'),
-        cell: ({ row }) => formatAmount(row.original.amount, row.original.currencyCode),
+        cell: ({ row }) => formatCheckoutMoney(row.original.amount, row.original.currencyCode, displayProfile),
       },
       {
         accessorKey: 'status',
@@ -223,7 +217,7 @@ export default function CheckoutTransactionsPage() {
       },
     )
     return baseColumns
-  }, [canViewPii, t])
+  }, [canViewPii, displayProfile, t])
 
   return (
     <Page>

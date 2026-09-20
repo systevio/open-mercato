@@ -11,6 +11,7 @@ import {
 } from '../reportExport'
 import { buildReportRows, sumReportRowAmounts, sumReportRowMinutes } from '../reportRows'
 import { computeReportTotals, type ReportInputEntry, type ReportInputProject } from '../reportTotals'
+import { getMarketTemplate } from '@open-mercato/shared/lib/display/templates'
 
 const projects: ReportInputProject[] = [
   { id: 'p1', name: 'Nordvik — migracja B2B', hourlyRate: 320, currencyCode: 'PLN' },
@@ -311,6 +312,18 @@ describe('PDF mirrors the sheet (screen 14 note 3)', () => {
     )
     expect(amounts).toContain('—')
     expect(amounts).not.toContain('0.00')
+  })
+
+  it('uses market separators in human PDF labels while preserving the stored currency', () => {
+    const usProfile = getMarketTemplate('US')
+    if (!usProfile) throw new Error('[internal] US market template is unavailable')
+    const lines = buildReportPdfLines(makeExportInput({ displayProfile: usProfile }))
+    const texts = lines.flatMap((line) => line.kind === 'cells'
+      ? line.cells.map((cell) => cell.text)
+      : [])
+
+    expect(texts.some((text) => text.includes('PLN'))).toBe(true)
+    expect(texts.some((text) => text.includes(','))).toBe(true)
   })
 
   it('renders a valid PDF file for the whole report', () => {

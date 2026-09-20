@@ -3,6 +3,7 @@
 import * as React from 'react'
 import type { DashboardWidgetComponentProps } from '@open-mercato/shared/modules/dashboard/widgets'
 import { useWidgetData, type WidgetDataFetcher } from '@open-mercato/ui/backend/dashboard/widgetData'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import { KpiCard, type KpiTrend } from '@open-mercato/ui/backend/charts'
 import {
@@ -45,13 +46,17 @@ const AovKpiWidget: React.FC<DashboardWidgetComponentProps<AovKpiSettings>> = ({
 }) => {
   const t = useT()
   const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const hydrated = React.useMemo(() => hydrateSettings(settings), [settings])
   const [value, setValue] = React.useState<number | null>(null)
   const [trend, setTrend] = React.useState<KpiTrend | undefined>(undefined)
   const [currency, setCurrency] = React.useState<string | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
-  const money = React.useMemo(() => createCurrencyFormatters(currency, '--', locale), [currency, locale])
+  const money = React.useMemo(
+    () => createCurrencyFormatters(currency, '--', locale, displayProfile),
+    [currency, locale, displayProfile],
+  )
 
   const fetchWidgetData = useWidgetData()
   const refresh = React.useCallback(async () => {

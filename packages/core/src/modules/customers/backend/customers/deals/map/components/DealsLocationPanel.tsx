@@ -11,7 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@open-mercato/ui/primitives/select'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { translateWithFallback } from '@open-mercato/shared/lib/i18n/translate'
 import type { FilterOptionTone } from '@open-mercato/shared/lib/query/advanced-filter'
 import { formatCurrency } from '../../../../../components/detail/utils'
@@ -71,6 +72,8 @@ export function DealsLocationPanel({
   onSelect,
 }: DealsLocationPanelProps): React.ReactElement {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const [panelSort, setPanelSort] = React.useState<PanelSort>('proximity')
 
   // The map endpoint is located-only, so every deal here carries a location. The guard keeps the
@@ -157,8 +160,9 @@ export function DealsLocationPanel({
               deal.location.country ||
               null
             : null
-          const valueLabel =
-            typeof deal.valueAmount === 'number' ? formatCurrency(deal.valueAmount, deal.valueCurrency) : null
+          const valueLabel = typeof deal.valueAmount === 'number'
+            ? formatCurrency(deal.valueAmount, deal.valueCurrency, locale, displayProfile)
+            : null
           // Compose the full card content for screen readers — the bare title alone dropped the
           // company, value, stage and location that sighted users read off the card.
           const cardAriaLabel =

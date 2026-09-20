@@ -8,6 +8,7 @@ import {
   formatCurrencyCompact,
   formatCurrencySafe,
 } from '../formatters'
+import { US_DISPLAY_TEMPLATE } from '@open-mercato/shared/lib/display/templates'
 
 // Every assertion below pins the locale explicitly (#5105). Without it these tests read the
 // runtime's default locale, so they pass in en-US and fail on any contributor machine whose
@@ -188,6 +189,24 @@ describe('formatters', () => {
       expect(money.format(1234)).not.toMatch(/\$|USD/)
       expect(money.formatCompact(1_000_000)).toMatch(/1,0.*mln/)
       expect(money.formatSafe(null)).toBe('--')
+    })
+
+    it('applies profile conventions while preserving an explicit denomination', () => {
+      const money = createCurrencyFormatters('PLN', '--', EN, {
+        ...US_DISPLAY_TEMPLATE,
+        currencyDisplay: 'symbol_and_code',
+        negativeStyle: 'parentheses',
+      })
+
+      expect(money.format(-1234)).toMatch(/^\(PLN\s1,234 PLN\)$/)
+      expect(money.currency).toBe('PLN')
+    })
+
+    it('keeps unknown-denomination analytics unlabelled under a currency profile', () => {
+      const money = createCurrencyFormatters(null, '--', EN, US_DISPLAY_TEMPLATE)
+
+      expect(money.format(1234)).toBe('1,234')
+      expect(money.formatCompact(1_000_000)).toBe('1.0M')
     })
   })
 })

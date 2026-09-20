@@ -201,6 +201,8 @@
   "documents.entityFields.currency": "Waluta",
   "documents.entityFields.description": "Opis",
   "documents.entityFields.email": "E-mail",
+  "documents.entityFields.formattedTotal": "Sformatowana suma",
+  "documents.entityFields.formattedValue": "Sformatowana wartość",
   "documents.entityFields.name": "Nazwa",
   "documents.entityFields.number": "Numer",
   "documents.entityFields.phone": "Telefon",

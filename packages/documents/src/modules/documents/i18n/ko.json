@@ -201,6 +201,8 @@
   "documents.entityFields.currency": "통화",
   "documents.entityFields.description": "설명",
   "documents.entityFields.email": "이메일",
+  "documents.entityFields.formattedTotal": "서식이 적용된 합계",
+  "documents.entityFields.formattedValue": "서식이 적용된 값",
   "documents.entityFields.name": "이름",
   "documents.entityFields.number": "번호",
   "documents.entityFields.phone": "전화번호",

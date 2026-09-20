@@ -3,11 +3,14 @@
 import * as React from 'react'
 import { Users, ArrowUpRight } from 'lucide-react'
 import { Badge } from '@open-mercato/ui/primitives/badge'
-import type { TranslateFn } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, type TranslateFn } from '@open-mercato/shared/lib/i18n/context'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import type { DealSummary } from '../../formConfig'
 import { formatCurrency } from '../utils'
 
 export function ActiveDealWidget({ deals, t }: { deals: DealSummary[]; t: TranslateFn }) {
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const topDeal = deals.sort((a, b) => {
     const va = typeof a.valueAmount === 'number' ? a.valueAmount : parseFloat(String(a.valueAmount ?? '0'))
     const vb = typeof b.valueAmount === 'number' ? b.valueAmount : parseFloat(String(b.valueAmount ?? '0'))
@@ -51,7 +54,7 @@ export function ActiveDealWidget({ deals, t }: { deals: DealSummary[]; t: Transl
         )}
         {Number.isFinite(amount) && amount > 0 && (
           <p className="mt-2 text-lg font-bold text-foreground">
-            {formatCurrency(amount, topDeal.valueCurrency)}
+            {formatCurrency(amount, topDeal.valueCurrency, locale, displayProfile)}
             <span className="ml-1.5 text-xs font-normal text-muted-foreground">
               {t('customers.companies.dashboard.potentialValue', 'potential value')}
             </span>

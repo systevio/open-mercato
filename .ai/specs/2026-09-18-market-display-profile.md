@@ -1,5 +1,324 @@
 # Market Display Profile With A US Seed
 
+## Currency completion amendment - 2026-09-19
+
+**Status: implementation, internal code review, the configured validation gate, and the primary isolated UI scenario are complete on the fork continuation. Manual mobile verification remains blocked by a dev-mode login HTTP 500 and is recorded as a QA limit; independent review and QA approval remain required.** This is the current implementation entry point for the reported currency defect.
+The original profile design below remains the foundation, including owner decisions D1-D11 and the resolved answers
+A1-A8. Its earlier compliance report describes that design, not proof that every consumer shipped. This amendment
+completes its currency scope in the same file, as required by the original PROMPT; it does not restart the original
+entity, tax, address, units or onboarding work. The address dropdown follow-up remains independent and unchanged.
+
+### Amendment TLDR and overview
+
+US organizations still see PLN defaults in customer KPI tiles and inconsistent money formatting elsewhere. Complete
+profile adoption for every OSS money presentation surface, default new records consistently, and render aggregates
+without assigning one currency to unconverted mixed amounts. The expected US happy path is USD records displayed in
+US conventions everywhere; changing a display profile cannot turn a stored PLN amount into USD.
+
+### Resolved assumptions (autonomous defaults)
+
+These supplement A1-A8 below. No unresolved Open Questions remain.
+
+| ID | Question | Applied default | Reason and reversibility |
+|---|---|---|---|
+| C1 | Does selecting US replace every stored currency with USD? | No. Explicit record/transaction currency wins; US supplies presentation and an unbound new-record default. | D2 excludes conversion and invariant 2 preserves stored money. Reversible presentation changes only. A genuinely all-USD view of foreign records requires a separately authorized conversion policy. |
+| C2 | Fix only Active Deals or every money surface? | Complete all first-party OSS money consumers, including backend, public/portal, widgets, previews, human-readable exports, emails and PDFs. | The user explicitly requests all other places. This is completion of one profile capability (D1), not a second localization project. |
+| C3 | How are mixed-currency KPIs shown? | One subtotal per known currency plus a separate unknown-currency group; never a combined monetary total. | Formatting cannot perform FX. Currency grouping is reversible and preserves amounts. |
+| C4 | Can a missing currency on old data be inferred from the current profile? | Only if the owning domain already explicitly defines the value as profile-denominated. Otherwise show an unlabelled number with a translated missing-currency indication. Empty monetary KPI zero may use the profile currency. | A current preference is not historical denomination evidence. No backfill or silent relabelling. |
+| C5 | What does “all” exclude? | Currency identifiers in selectors, exchange-rate tools, provider protocols, audit snapshots, machine exports, tests and legitimate foreign-currency records remain codes. Enterprise code is not edited. | These are data contracts or out-of-bounds code, not display defaults. Record exclusions individually in the audit. |
+
+### Problem statement and verified evidence
+
+Code research baseline: [`46b0f6370`](https://github.com/systevio/open-mercato/tree/46b0f6370) (2026-09-19).
+Implementation continues the recovered work on the `systevio/open-mercato` fork and targets its `develop` branch.
+The market-profile foundation is already present on that fork and is reused rather than rebuilt. This continuation
+recovers the saved plan and partial implementation commits from cancelled run `0f20603a-fe83-4586-afce-8250ce4b3084`;
+it does not publish to, reset against, or otherwise modify either upstream repository. The independent US-state
+dropdown remains outside this amendment.
+
+Source inputs: [original PROMPT](https://github.com/systevio/open-mercato/blob/46b0f6370/.ai/briefs/core-us-display-pack/CORE-us-display-profile.PROMPT.om-spec-writing.md)
+and [complete BRIEF](https://github.com/systevio/open-mercato/blob/46b0f6370/.ai/briefs/core-us-display-pack/CORE-us-display-profile.BRIEF.attach.md).
+The companion [address correction](https://github.com/systevio/open-mercato/blob/46b0f6370/.ai/specs/2026-09-19-us-state-dropdown-in-address-forms.md)
+is source context, not another deliverable in this PR. Line numbers below refer to that revision, not the original brief's
+`ab23d45f`. The reported demo URL was not accessible through the web reader; its live record data and deployed build
+were not verified. The evidence establishes defects in code, not whether the reported company's deals actually store PLN.
+
+| Evidence | Finding | Required correction |
+|---|---|---|
+| `customers/components/detail/CompanyKpiBar.tsx:77,130,146` | Chooses API/first-deal currency then hardcoded PLN; neither formatter call receives a profile. The same currency labels Active Deals and LTV. | Resolve profile in this leaf and format each KPI's own currency groups; use profile currency for empty monetary zero. |
+| `customers/components/detail/utils.ts:163` | Shared `formatCurrency` forces PLN when missing and always uses zero decimals. | Preserve old signature/legacy behavior for unprofiled external callers; migrate owned call sites through an optional profile-aware bridge with explicit precision. |
+| `customers/components/detail/ActiveDealCard.tsx:167` | Calls that formatter without locale or profile. | Pass the profile and the selected deal's actual currency. |
+| `customers/api/companies/[id]/route.ts:938-958` | Sums active/won amounts without currency grouping, labels both using the first available deal currency. | Add grouped metrics from the complete scoped deal set; do not reconstruct totals from a paginated detail preview. |
+| `customers/backend/customers/deals/pipeline/components/QuickDealDialog.tsx:142-154` | Default selection uses tenant base/first currency/USD, without a market profile. | Apply profile default only to a new, untouched currency field without a stronger document/channel binding. |
+| `shared/src/lib/display/money.ts:51-67` | Existing `formatMoney` already takes profile and preserves explicit currency ahead of profile currency. | Reuse this contract; do not reverse precedence to make the screenshot appear fixed. |
+| `sales/components/PriceWithCurrency.tsx`, `customers/components/detail/{CompanyCard,DealDetailHeader}.tsx` | Already have profile-aware paths. | Verify and keep them; a search hit is not automatically a defect. |
+| `core/src/modules/dashboards/lib/formatters.ts:54-59` | Deliberately avoids inventing a currency for analytics with no denomination. | Preserve this safeguard while adding profile presentation at actual money consumers. |
+
+Paths in the first five rows are relative to `packages/core/src/modules/`; other rows name their package under
+`packages/`. Confirm call sites again when implementation starts because the branch may have advanced.
+
+### Research and alternatives
+
+- [Odoo multi-currency](https://www.odoo.com/documentation/18.0/applications/finance/accounting/get_started/multi_currency.html)
+  separates transaction and company currency. Adopt denomination fidelity; reject introducing its accounting conversion machinery here.
+- [Shopware sales channels](https://docs.shopware.com/en/shopware-6-en/settings/saleschannel) distinguish available and
+  default currencies. Adopt a default rather than overwriting explicit selection; keep organization-level presentation.
+- [Adobe Commerce currency configuration](https://experienceleague.adobe.com/en/docs/commerce-admin/stores-sales/site-store/currency/currency-configuration)
+  separates currency configuration from rates. Adopt explicit precedence; reject adding another settings hierarchy.
+- [Shopify local currency pricing](https://help.shopify.com/en/manual/international/pricing) uses exchange rates for
+  currency conversion. Reject copying conversion into a formatting helper: D2 explicitly excludes it.
+
+### Design Decisions and architecture
+
+1. **D1/D4 completion:** retain one spec and the original three phases. The steps below complete the money portion of
+   Phase 2/3; other long-tail localization is unchanged. A repaired tile alone is not completion.
+2. **D2/D3/D5 fidelity:** `formatMoney(amount, explicitCurrency, profile, options)` changes presentation, not meaning.
+   Preserve explicit codes, record amounts, minor-unit precision, valid zeroes, negatives and existing rounding policy.
+   Profile `currencyDisplay` controls symbol/code/both. US with USD renders `$1,234.56`; explicit PLN remains PLN.
+   Unprofiled callers retain their existing formatting and create defaults. Safe grouped KPI rendering applies to all
+   organizations, including those without a profile: preserving an incorrect mixed total is not a compatibility goal
+   for the new UI. The legacy API scalars remain bridged. Never introduce currency conversion, new rates or seed rewrites.
+3. **D6/D11 reuse:** client leaves use the existing `useDisplayProfile` from
+   `@open-mercato/ui/backend/markets/MarketProfileProvider`; pure formatters receive a profile parameter. Server consumers
+   resolve `displayProfileResolver` soft-optionally from their existing container and the owning record's tenant and
+   organization, once per render/job. Do not read a signed-in admin's organization when rendering an anonymous quote,
+   email or PDF for another organization. No new dependencies, global singleton or extra profile request per price.
+4. **Creation precedence:** explicit user value or domain binding (source document, channel, price list, payment) wins;
+   otherwise a supported active profile currency; otherwise the existing domain fallback. A profile default must exist
+   in the allowed currency dictionary. If unavailable, preserve valid selection or show the existing required-field
+   validation; do not silently create a dictionary entry. Apply once to pristine create forms, never edit forms, clones
+   carrying a currency, in-progress user selections or provider payloads. Submission persists the visible selection via
+   the existing guarded commands. No API may reinterpret an omitted currency on an existing record.
+5. **Aggregation:** normalize valid codes for grouping; keep missing/invalid currency separate. Group active and won
+   sets independently using the existing open/won status predicates. Honor current soft-delete, tenant, organization,
+   access and company-link filters. Count unknown/invalid amount records, but do not add non-finite values to money totals.
+   New UI consumes complete grouped API data; it must not sum a limited `deals` preview or borrow currency from LTV for
+   Active Deals. Monetary comparisons/trends are per currency; a deal-count trend can remain explicitly count-based.
+6. **No data remediation by profile switch:** investigate stored codes read-only during implementation. If demo values
+   are genuinely PLN, report that separately; no mass update, migration, seed rerun or historical amount rewrite is
+   authorized by this spec. The product limitation is explicit: an all-USD view of foreign-denominated records is not
+   achievable through this display-only feature.
+
+### Data Models and API Contracts
+
+No new entity, migration, event, ACL, DI key or persisted field is needed for currency completion. Existing profile CRUD,
+optimistic locking and undo remain intact. The company detail GET remains at `/api/customers/companies/:id`, with existing
+request parameters, authorization and error statuses. Add optional fields to its existing `kpis` object:
+
+```ts
+type CompanyCurrencySubtotal = {
+  currencyCode: string | null
+  amount: number
+  count: number
+  invalidAmountCount: number
+}
+
+type CompanyCurrencyKpiExtension = {
+  activeDealsByCurrency?: CompanyCurrencySubtotal[]
+  wonDealsByCurrency?: CompanyCurrencySubtotal[]
+}
+```
+
+`currencyCode` is a normalized valid code or `null` for unknown/invalid denomination. `amount` is the sum of finite
+numeric amounts in that group; `count` counts its deals, including invalid-amount records; `invalidAmountCount` makes
+incomplete subtotals explicit. Sort by currency code, with `null` last. Empty sets produce `[]`. A group containing only
+invalid amounts must render an unavailable amount, not a misleading zero. Use the current domain amount parser and
+round only when formatting. Return both arrays on all successful new-server responses, including empty cases; they
+remain optional in types so older servers are tolerated. Update route OpenAPI and `CompanyOverview` types additively.
+
+Keep `activeDealsValue`, `dealCurrency`, `ltvValue` and other existing members for compatibility. Mark the unsafe scalar
+aggregation contract as deprecated, document the grouped replacement in `UPGRADE_NOTES.md`, and preserve it for at least
+one minor version. The new UI never uses those scalars for monetary totals when grouped fields exist. With an older API
+that lacks groups, render the count and a translated unavailable-total state rather than fabricate a total from partial
+records. Do not silently fix legacy response semantics in a purported additive change.
+
+Grouped totals use the API's complete authorized deal rows already loaded for metrics. No additional per-deal queries,
+no client-side scan of other companies, and no profile-dependent formatting in numeric API payloads. Existing request
+and tenant-scoped caching stays in force; groups need no new cache and depend on the same mutation invalidation as the
+existing KPI response. New read fields expose only aggregates of data already authorized for the caller.
+
+### UI/UX and frontend architecture contract
+
+Reuse the existing KPI/card primitives and the current layout. A single-currency tile shows one formatted amount; empty
+Active Deals shows zero in the selected profile currency (USD for US), with zero count. No won deals keeps the existing
+LTV empty state. For mixed currencies, show a translated “Multiple currencies” label and a visible accessible list of
+formatted per-currency subtotals, including ISO codes where symbols would be ambiguous. Unknown groups have a translated
+“Currency unavailable” label; incomplete sums have a translated indication and do not masquerade as complete totals.
+If the list is long, use the existing expandable/detail affordance with all groups reachable by keyboard and touch.
+Do not put essential amounts only in hover content. Preserve tile hide/show, tabs and responsive layout.
+
+| Boundary / client file | Reason / owner | Guardrail |
+|---|---|---|
+| Existing company detail route and `CompanyKpiBar.tsx` | Route keeps its current boundary; KPI leaf uses profile context and existing hide/show state | No new client page root; API owns full aggregates |
+| `ActiveDealCard.tsx`, `DealsSection.tsx`, existing deal pipeline cards/dialogs and deal detail formatters | Existing interactive leaves use context; pure formatter modules stay React-free | No provider or per-card fetch; preserve selected currency across profile refresh |
+| Existing sales/catalog/checkout/widgets consumer leaves in audit | Their existing form/table/chart interaction justifies current client boundary | Add optional profile arguments, no new heavy library or top-level browser import |
+| Public/server/email/PDF renderers | Existing record authorization and server rendering own the profile | Pass serializable profile/view-model data; no hooks or admin-cookie scope in jobs |
+| Existing `MarketProfileProvider` | Already owns profile hydration and update subscription | Reuse unchanged; do not widen bootstrap imports |
+
+The implementation manifest must list each touched client file's exact context/state/effect need. No new unallowlisted
+client page roots, no new client leaf above 300 LOC, and no route-specific imports at the provider. Existing large files
+may receive only local formatter wiring; extracting unrelated UI is out of scope. Budget: zero extra profile requests
+per price, zero new dependencies, no N+1 queries, and no unexplained route bundle growth greater than 5 KiB gzip against
+the same build baseline. Provide `yarn check:client-boundaries`, one affected-route build/bundle comparison and hydration
+smoke tests for each changed interactive route. Profile switching must update formatting without stale memoized values
+or resetting form input; include profile and currency in formatter cache/memo dependencies.
+
+Prototype: [Illustrative company currency states](assets/market-display-currency-completion/mockup-01-company-currency.html).
+
+![Proposed company money display, synthetic data](assets/market-display-currency-completion/mockup-01-company-currency.png)
+
+Visual evidence limits: the local app failed its HTTP readiness check and Playwright navigation could not connect.
+The reported screen was not live-verified. The mockup above was rendered with Playwright using synthetic values; it is
+not a current-app screenshot or proof of working behavior. Implementation must capture the real company tile with the
+deterministic fixtures below.
+
+### Implementation Plan - currency completion
+
+**Phase C1: inventory, contracts and the reported path (original Phase 2 completion).**
+
+1. Before editing, attempt a read-only reproduction and currency provenance for the reported company. When authorized
+   access is unavailable, reproduce with deterministic synthetic fixtures and record the reported record as unverified;
+   do not block code work or obtain credentials outside the task. Audit tracked OSS
+   source using `rg` for `Intl.NumberFormat`, currency-style `toLocaleString`, local `formatCurrency`/`formatAmount`,
+   `PLN`/`EUR`/`USD` defaults, hardcoded currency symbols and amount/code concatenation. Follow imports and real call sites,
+   including already-migrated helpers. Inspect external official modules if present, but ship any required changes in
+   their own repository; never update a submodule pointer here. Store the exhaustive per-file disposition table in this
+   spec, replacing the seed inventory below: migrated, already compliant, domain/protocol exemption, or external-owner.
+2. Add the optional grouped KPI response fields, OpenAPI schema, types and scoped regression tests atomically. Keep old
+   fields and consumers working. Add `UPGRADE_NOTES.md` deprecation guidance for unsafe scalar money totals.
+3. Migrate `CompanyKpiBar`, `ActiveDealCard` and every consumer of `customers/components/detail/utils.ts` through the
+   profile-aware path, preserving legacy helper calls. Add tests with the consumer changes, including the full-vs-preview
+   API case. The reported path works at this checkpoint; all other audited gaps remain tracked, not declared fixed.
+
+**Phase C2: all OSS money consumers (original Phase 3 money completion).**
+
+4. Migrate each non-exempt inventory row, module by module, with its real caller and tests. Reuse existing bridges;
+   public formatter signatures get only optional trailing arguments/options. Apply pristine-create defaults consistently
+   in deal forms, quick create, sales/catalog entry points and every audited unbound money editor. Preserve domain-bound
+   currency and API payload semantics. Resolve profiles by record scope on public/server consumers.
+5. Complete money-path coverage of backend, public/portal, widgets, previews, notifications, emails, PDF and human exports.
+   Keep machine-readable exports and provider contracts unchanged. Verify human exports identify each currency and
+   never concatenate a mixed sum. No opportunistic date/address/tax/measurement work is part of this completion phase.
+6. Extend the existing Phase 3 lint guard if available, otherwise add the narrow rule within the existing lint plugin.
+   Detect new bespoke money-format constructors, locale-number currency options and literal fallback codes in display
+   code. Maintain a reviewed file-level exception list with reasons for legacy bridges/protocols/reference data; do not
+   ban all currency strings. Rule fixtures must demonstrate rejected omissions and accepted canonical/legacy paths.
+   Re-run the inventory search: zero unexplained OSS monetary display/default call sites is the completion condition.
+
+**Phase C3: acceptance and release evidence.**
+
+7. Run targeted unit/API tests per changed package, self-contained integration scenarios below, i18n checks, client-boundary
+   checks and relevant builds through the repository's selected runner and shared Turbo cache. Run `yarn generate` only
+   where auto-discovery contracts changed. Record exact file/test coverage and all exclusions. Ship tests in the same
+   implementation PR, request manual UI QA and retain the original profile spec path as `Source doc:`.
+8. Capture before/after company, deal pipeline, sales and checkout surfaces with synthetic data; verify a US organization
+   and an unchanged Polish/legacy organization on the same instance. Reverting rendering/group-consumer changes requires
+   no data rollback; leave additive response fields until the compatibility window permits removal. Never roll back by
+   rewriting historical currencies. Completion requires every included inventory row closed, not only the first tile.
+
+### Initial currency consumer inventory
+
+This is a bounded research seed, not an exhaustive verification claim. All `core` rows are under
+`packages/core/src/modules/`; include callers, not only each utility's implementation. Existing profile-aware paths
+must be tested rather than blindly rewritten.
+
+| Family | Concrete audit entry points | Disposition required |
+|---|---|---|
+| Company detail | `customers/components/detail/{CompanyKpiBar,ActiveDealCard,DealsSection,CompanyCard,utils}.tsx` (utils is `.ts`); `customers/api/companies/[id]/route.ts` | Correct verified fallback and grouping defects; audit annual revenue, LTV, empty tiles and details |
+| CRM money and defaults | `customers/components/detail/{AnnualRevenueField,DealWonPopup,DealLostSummaryDialog,DealForm}.tsx`, `detail/create/DealCurrencyField.tsx`, `customers/components/DealsKpiStrip.tsx`, `customers/backend/customers/deals/[id]/hooks/formatters.ts` | Profile, currency provenance and precision; protect existing status predicates |
+| Deal pipeline | `customers/backend/customers/deals/pipeline/{page.tsx,components/DealCard.tsx,components/QuickDealDialog.tsx,components/CurrencyFilterPopover.tsx,components/LaneCurrencyBreakdown.tsx,components/CurrencyBreakdownTable.tsx}` | Group labels, popovers, selected/default currency and totals |
+| Sales/catalog | `sales/components/PriceWithCurrency.tsx`, `sales/components/documents/{SalesDocumentsTable,PaymentsSection,AdjustmentsSection,LineItemDialog}.tsx`, `sales/components/documents/lineItemUtils.ts`, `sales/widgets/dashboard/shared.ts`; original catalog manifest below | Audit all price consumers, defaults, totals, refunds and precision |
+| Analytics | `dashboards/lib/formatters.ts` and its chart/KPI/widget consumers | Apply presentation only to amounts with established denomination; preserve unknown/mixed safeguards |
+| Checkout/payment | `packages/checkout/src/modules/checkout/{components/PayPage.tsx,backend/checkout/transactions/page.tsx,backend/checkout/transactions/[id]/page.tsx}`, `payment_gateways/backend/payment-gateways/page.tsx` | Display transaction currency; never change payment requests or provider values |
+| Warranty/WMS and remaining OSS | `warranty_claims/backend/components/ClaimsKpiStrip.tsx`, claims pages/widgets, `wms/lib/inventoryDisplayUi.ts`, `wms/components/backend/WmsOperationalDashboardPage.tsx`; repository-wide search remainder | Audit only monetary values; classify non-money numeric hits |
+| Previews and server output | `{customers,sales,catalog}/lib/messageObjectPreviews.ts`, `workflows/lib/interpolation-pipeline.ts`, quote/public pages, emails, documents PDF and shared export paths from original manifest | Resolve owning scope; preserve protocol/canonical exports and historical snapshots |
+| Shared compatibility | `packages/ui/src/utils/format.ts`, `packages/shared/src/lib/display/money.ts` and all legacy formatter callers | Keep contracts; migrate first-party consumers and explicitly allow legacy bridge code |
+
+### Final currency consumer disposition inventory
+
+The continuation reran repository-wide searches for currency-style `Intl.NumberFormat`, currency-bearing
+`toLocaleString`, `toFixed` plus a denomination, literal USD/PLN/EUR fallbacks, symbols, and amount/code
+concatenation. It then followed the real callers. The table is the completion record for C1.1 and C2.4-C2.6;
+paths are repository-relative, and grouped braces enumerate one audited surface family rather than hiding an
+unreviewed remainder.
+
+| Surface | Concrete files / boundaries audited | Final disposition |
+|---|---|---|
+| Shared money contract | `packages/shared/src/lib/display/money.ts`, `packages/ui/src/utils/format.ts`, `packages/ui/src/backend/markets/MarketProfileProvider.tsx` | **Already compliant / compatibility bridge.** The canonical helper preserves explicit currency; the optional-profile UI bridge retains historical no-profile behavior. Reviewed lint exception. |
+| Company KPI API | `customers/api/companies/[id]/route.ts`, its OpenAPI schema, `customers/lib/currencySubtotals.ts`, `customers/components/formConfig.tsx` | **Fixed.** Complete scoped rows are grouped by normalized denomination, unknown is separate, invalid amounts are counted, and deprecated scalars are emitted only for one usable known group. |
+| Company/person detail | `customers/components/detail/{CompanyKpiBar,ActiveDealCard,AnnualRevenueField,CompanyCard,DealsSection,DealWonPopup,DealLostSummaryDialog,utils}.tsx` (`utils.ts`) and enriched-person companies route | **Fixed.** Profile presentation reaches each leaf; active and won totals stay independent; mixed, unknown and incomplete totals are explicit. |
+| Deal detail, pipeline and linking | `customers/backend/customers/deals/{[id],pipeline}/**`, `customers/components/{DealsKpiStrip,linking/adapters/dealAdapter}.tsx`, `packages/ui/src/ai/records/DealCard.tsx` | **Fixed.** Cards, drag previews, filters, lane breakdowns, bulk selections, detail formatters and AI cards use explicit deal currencies and profile number conventions. |
+| Deal create defaults | `customers/components/detail/{DealForm,create/CreateDealForm,create/DealCurrencyField}.tsx`, `customers/backend/customers/deals/pipeline/components/QuickDealDialog.tsx` | **Fixed.** A supported profile currency initializes only pristine creates; edits, explicit initial values and user changes win. Base/available legacy fallbacks remain only when the profile code is unavailable. |
+| Customer search and previews | `customers/{search.ts,lib/messageObjectPreviews.ts}`, company/deal linking presenters | **Fixed.** Human labels/previews resolve the owning scope and preserve the record currency; missing denomination is named rather than inferred. Search index data remains raw as a machine representation. |
+| Catalog | `catalog/backend/catalog/products/{[id],[productId]/variants/[variantId]}/page.tsx`, `catalog/components/products/ProductsDataTable.tsx`, `catalog/lib/messageObjectPreviews.ts`, `packages/ui/src/ai/records/ProductCard.tsx`, authoring pack | **Fixed.** Product/variant UI, previews and AI cards use profile-aware display. The authoring payload no longer fabricates USD when source currency is absent. Catalog seeds and AI prompt examples remain reference data. |
+| Sales forms and backend | `sales/backend/sales/{documents,channels/offers}/**`, `sales/components/{PriceWithCurrency,ShippingMethodsSettings}.tsx`, `sales/components/documents/{SalesDocumentForm,LineItemDialog,PaymentsSection,SalesDocumentsTable,lineItemUtils}.tsx`, channel offer components | **Fixed / reviewed bridges.** Create defaults validate the profile against allowed currencies; bound documents/payments keep their currency. Legacy public formatter signatures remain reviewed lint exceptions. Raw amount inputs and calculation strings are not presentation. |
+| Sales widgets, messages and notifications | `sales/widgets/dashboard/{shared,new-orders,new-quotes}/**`, notification renderers, `sales/lib/messageObjectPreviews.ts`, `sales/commands/payments.ts` | **Fixed.** Owning-scope profile formatting covers widgets, previews, notifications and payment human labels without changing command/provider values. |
+| Dashboards | `dashboards/lib/formatters.ts` and `{aov-kpi,pipeline-summary,revenue-kpi,revenue-trend,sales-by-region,top-customers,top-products}/widget.client.tsx` | **Fixed.** Known denominations use the profile; missing denominations stay unlabelled/unknown and mixed values are never assigned the profile currency. |
+| Checkout and payment gateways | `packages/checkout/src/modules/checkout/{backend,components,emails,workers,widgets}/**`, `checkout/lib/{displayMoney,defaultCurrency}.ts`, `payment_gateways/{backend,lib/displayMoney.ts}` | **Fixed.** Admin/public pages, email worker/templates and notifications use transaction currency plus owner profile. Email components retain their legacy `amount` plus `currencyCode` output for direct callers and accept an additive preformatted amount from the scoped worker. Link/template pristine defaults validate the profile against the currency dictionary. Gateway/provider request payloads remain unchanged data contracts. |
+| Documents and human templates | `packages/documents/src/modules/documents/{commands,api/templates/[templateId]/preview,lib/{entityRegistry,templateFill,templateInstantiation,templateSeeds}}.*` | **Fixed.** Additive formatted money tokens carry the owner profile; built-in human templates use them, including legacy built-ins upgraded at render time. Preview digests bind the profile fields that affect money presentation, so instantiation rejects a stale render after a profile change. Existing raw tokens remain available for custom/machine templates. |
+| Staff time tracking and exports | `staff/backend/staff/time-tracking/**`, `staff/lib/time-tracking-ui/**`, `staff/lib/timesheets-reports/{reportExport,pdf}.ts`, export route | **Fixed.** UI and PDF/human-readable export use owner profile and explicit report currency. CSV/XLSX values remain canonical machine data by design; persisted `toFixed` strings are storage precision, not display. |
+| Warranty and shipping | `warranty_claims/{backend,frontend,lib/displayMoney.ts,api/stats/route.ts}`, `shipping_carriers/lib/shipment-wizard/components/ConfirmStep.tsx` | **Fixed.** Backend/portal claims, recovery suggestions, grouped recovered totals and shipment price summaries preserve explicit currencies; mixed/unknown recovery totals are separated. Risk/policy decimal normalization remains domain math. |
+| Public quote/portal paths | Existing sales public quote renderers plus checkout pay page and warranty portal paths | **Already compliant / fixed at leaves.** Sales public quote already passed record currency and resolved profile; checkout and warranty gaps were migrated. Anonymous rendering never reads an unrelated admin organization. |
+| Currency selectors and exchange rates | `currencies/**`, currency dictionaries, `AmountInput`, `DealCurrencyField`, market profile settings | **Data-contract exclusion.** ISO codes, symbols, exchange-rate bases and selector options identify currencies; they must not be replaced by presentation defaults. |
+| Machine/provider boundaries | Payment/carrier/tax provider payloads, ORM/API numeric fields, audit/undo snapshots, search-index values, raw CSV/XLSX, import/export interchange | **Data-contract exclusion.** Values stay canonical and lossless. Human renderers at the boundary are covered above. |
+| Reference/demo/seed surfaces | `workflows/frontend/checkout-demo/page.tsx`, design-system gallery, example app/payment mocks, docs snippets, seeds and fixtures | **Reference exclusion.** The workflow page deliberately simulates currency selection and FX; examples demonstrate concrete currencies; seeds/fixtures establish data. None determines a production record's display denomination. |
+| WMS scan remainder | `wms/lib/inventoryDisplayUi.ts`, operational dashboard/import components | **Already compliant / non-money exclusion.** Search hits are stock quantities, dimensions, weights or counts, not monetary values. |
+| Enterprise and official modules | `packages/enterprise/**`; optional `external/official-modules` | **Owner/scope exclusion.** Enterprise is prohibited from this OSS task. The official-modules worktree was not present, so no pointer or external repository was changed. |
+| Prevention guard | `packages/eslint-plugin-ds/rules/no-bespoke-money-format.js`, plugin preset/config/tests | **Fixed.** New display code warns on bespoke currency `Intl` constructors and literal currency fallbacks; canonical bridges, tests, seeds/reference data and enterprise have explicit reviewed exclusions. |
+
+### Testing Strategy and acceptance matrix
+
+Use self-contained fixtures created through existing guarded APIs, cleaned in `finally`; no dependency on demo records.
+Integration writes/profile switching run in a fresh isolated test database, never the parent shared database. Tests must
+assert both formatted output and unchanged stored amounts/codes. Implementation assigns unique test IDs after checking
+the current inventory; this table names scenarios rather than colliding with existing `TC-MKT-*` IDs.
+
+| Scenario | Required assertions / paths |
+|---|---|
+| US empty company | GET company detail groups `[]`; `/backend/customers/companies-v2/:id?tab=files` Active Deals uses USD zero and no PLN fallback; LTV keeps its empty state |
+| US USD records | Active/won USD fixtures show `$1,234.56` consistently in company, person/deal detail, list and pipeline; decimals are not dropped; API numbers unchanged |
+| Foreign and mixed records | USD active, PLN won, plus EUR/unknown/invalid-amount records; separate group totals, no shared Active/LTV currency, no invalid-value poisoning or combined monetary total |
+| Complete aggregation | More linked deals than the detail preview limit; grouped API totals include every authorized record exactly once; client does not recompute from preview |
+| Format variants | Symbol/code/both, decimal/group overrides, negative parentheses, zero, null, numeric strings, JPY and three-decimal currency; explicit precision preserved |
+| Creation/edit | Profile USD preselects eligible untouched create fields; user-selected PLN survives rerender/profile switch; edits and clones keep stored currency; unavailable USD is not silently inserted into dictionaries |
+| Isolation and fallback | Two tenants and two organizations, separate profiles, unauthorized company GET denied; missing/disabled markets and no-profile tenant retain legacy formatting/defaults (grouped KPI safety still applies); no cross-scope cache reuse |
+| Public and async output | Public quote, associated email and PDF use record owner's profile despite unrelated viewer/admin context; verify stored currency and values after rendering |
+| Remaining families | For every migrated module, cover one real key UI path plus helper edge cases; checkout/refund payment currency and dashboard unknown-currency behavior remain intact |
+| API/mutation contracts | GET company detail groups and old fields; existing profile GET/PUT/DELETE conflict and refresh behavior; existing deal/catalog/sales create/edit paths exercised for changed defaults; no new write route |
+| Hydration/regression | All affected routes load without hydration errors; profile change updates formatting and leaves user input intact; per-route bundle check and full inventory disposition recorded |
+
+For an organization whose records are USD, no display-only PLN/EUR fallback remains anywhere in the accepted inventory.
+A foreign-currency record still shows its true currency; missing denomination is visibly unknown. This distinction is
+mandatory acceptance, not a reason to falsify money merely to remove the text “PLN”.
+
+### Migration & Backward Compatibility
+
+No database migration or data backfill in this amendment. The original profile migrations are prerequisites, not work to
+rerun. New aggregate fields are additive and optional to clients; existing API fields and imports remain available for
+at least one minor version. Any formatter bridge retains old positional signatures and unprofiled behavior. Update
+`UPGRADE_NOTES.md` only for the declared scalar deprecation; do not narrow validators or introduce new required fields.
+The existing `2026-09-19-us-state-dropdown-in-address-forms.md` correction is retained and unaffected. Enterprise money
+consumers require their owner's follow-up and are not certified by this OSS audit. External modules, when present, are
+reported with ownership and separate delivery status rather than silently counted as completed.
+
+### Risks & Impact Review
+
+| Severity | Concrete failure / affected area | Mitigation | Residual risk |
+|---|---|---|---|
+| High | Relabel PLN as USD without conversion | Explicit currency first; stored-value assertions; no data writes on profile switch | All-USD converted reporting remains unavailable by design |
+| High | Mixed/partial deals misstate company value | Server groups complete scoped rows; active and won independent; unknown/invalid states | Old consumers still see deprecated scalar fields until migrated |
+| High | Public email/PDF resolves viewer profile or crosses tenants | Owning-record scope, soft-optional DI, isolation tests | Provider/scope regressions require integration tests |
+| Medium | Default overwrites user selection or payment binding | Apply only to pristine unbound create fields; preserve document/provider currency | Older entry points can be missed until inventory closes |
+| Medium | Profile update leaves stale cached/memoized money | Existing scoped provider refresh and profile-dependent memo keys | Refresh failures preserve last known profile; no destructive fallback |
+| Medium | Rounding, huge client bundle or per-cell network requests | Preserve explicit precision, minor-unit tests, pure helpers, zero per-price fetches, measured budget | Existing unrelated performance debt remains |
+| Medium | Audit mistaken for proof of “all” | Per-file dispositions, module-path tests, regression guard and declared external/enterprise exclusions | Third-party modules cannot be certified here |
+
+
+## Original profile design (2026-09-18 baseline)
+
+The sections below preserve the original design and historical research. Statements about then-current code and counts
+refer to that baseline; the currency amendment above records the verified 2026-09-19 state and takes precedence for money.
+
 ## TLDR
 
 **Key Points:**
@@ -95,7 +414,7 @@ one admin action instead of a fork.
 
 ## Problem Statement
 
-The evidence below is from the brief's section 2 and was re-verified on this branch. Counts are files, tests excluded.
+The evidence below is historical, from the original brief and its 2026-09-18 authoring review. Counts are files, tests excluded.
 
 **Dates, times, calendars.** One shared helper pair (`formatDisplayDate` / `formatDisplayDateTime` in
 `packages/ui/src/primitives/date-format.ts`) reads the env pins `NEXT_PUBLIC_OM_DATE_FORMAT` and
@@ -381,7 +700,12 @@ export interface DisplayProfileResolver {
 }
 
 // money.ts
-export function formatMoney(amount: string | number, currencyCode: string, profile?: DisplayProfile | null): string
+export function formatMoney(
+  amount: string | number | null | undefined,
+  currencyCode: string | null | undefined,
+  profile?: DisplayProfile | null,
+  options?: FormatMoneyOptions,
+): string | null
 
 // datetime.ts
 export function formatDate(value: Date | string, profile?: DisplayProfile | null): string
@@ -410,7 +734,7 @@ export function paperSize(profile?: DisplayProfile | null): { css: 'A4' | 'Lette
 
 Notes that matter for implementation:
 
-- Every helper takes the profile as its **last, optional** argument, so an unmigrated call site compiles unchanged and
+- Every helper accepts an **optional** profile argument (money also accepts trailing formatting options), so an unmigrated call site compiles unchanged and
   renders `LEGACY_DISPLAY_DEFAULTS`. This is what lets wave 1 and wave 2 be separate pull requests without a flag.
 - `formatDisplayDate` and `formatDisplayDateTime` in `packages/ui/src/primitives/date-format.ts` become thin wrappers
   over `formatDate` / `formatDateTime`, keeping their current signatures and their env pin fallback. Their five existing
@@ -1169,13 +1493,55 @@ None outstanding. One item was found and corrected during this review rather tha
 were taken autonomously and are open to override; none of them blocks a phase, and none carries a human confirmation
 gate.
 
+## Final Compliance Report - 2026-09-19 currency amendment
+
+Reviewed the root task router, spec rules, core and customers guides, shared rules, UI and backend rules, QA integration
+rules, `BACKWARD_COMPATIBILITY.md`, the installed autonomous spec-writing workflow and the repository checklist/compliance
+and frontend-contract references. This report covers the new currency amendment, not a fresh certification of every
+historical localization phase or every long-tail module. Implementation must load each audited module's local guide
+before changing it.
+
+| Requirement | Assessment | Evidence / limit |
+|---|---|---|
+| Cohesion and owner decisions | Pass | One existing profile's money completion; D1-D11 retained; C1-C5 resolved without FX or persisted rewrites |
+| Tenant isolation and encryption | Pass in design | Existing authorized complete metrics rows; owning-record scope for output; no new PII or encryption map changes |
+| Commands and mutation guards | Pass in design | Creation still uses existing guarded commands; no new write endpoint or profile-switch data rewrite |
+| API/schema compatibility | Pass in design | Optional grouped fields, retained scalar bridge, OpenAPI and upgrade note requirements |
+| UI/i18n/frontend boundaries | Pass in design | Existing leaves/provider, translated states and reusable primitives; module-level ledger and performance evidence required at implementation |
+| Data/API/UI consistency | Pass in design | Unknown and invalid amounts explicit; full grouped response, independent Active/LTV groups; no preview-based aggregate fallback |
+| Cache/performance | Pass in design | Existing scoped invalidation; zero per-cell queries/profile fetches; profile-sensitive memo keys and measured budget |
+| Tests and operational safety | Planned, not executed | Self-contained fixture matrix and isolated DB for mutation tests; no production write or migration in this authoring run |
+| Evidence and publication | Partial visual evidence | Playwright-rendered illustrative mockup inspected; current app HTTP/readiness and browser connection failed |
+| Independent scope review | Pass after corrections | Fresh-context reviewer found no split needed; clarified no-profile grouping safety and synthetic reproduction fallback |
+
+**Verdict:** Ready for design review and implementation planning. No unresolved high-stakes autonomous assumption.
+This is not implementation approval, a runtime test result, or certification that all OSS consumers are already fixed.
+The mandatory implementation inventory and acceptance matrix are completion gates, not claims of authoring-run coverage.
+Local authoring checks: `git diff --check`, exact output path, source-link/section checks and rendered PNG inspection.
+Runtime builds and integration tests are not run for the documentation-only change.
+
 ## Changelog
+
+### Currency amendment review - 2026-09-19
+
+- Reviewer: author plus independent fresh-context scope reviewer. Security, performance, cache, command and risk designs
+  reviewed; implementation verification remains pending. Verdict: ready for design review.
+- Corrected two review findings: denomination-safe grouping applies even without a profile (legacy formatting/defaults
+  remain), and inaccessible reported data can be replaced by deterministic reproduction fixtures with the gap recorded.
+- Included a rendered synthetic mockup; no current-app screenshot could be captured because the local app did not respond.
+- Published as documentation only against upstream develop, carrying the original single spec as baseline context without
+  its unrelated runtime commits. Source-code citations explicitly name the research baseline.
 
 ### 2026-09-19
 
+- Added the currency completion amendment at the original PROMPT's exact output path. It records verified company KPI
+  fallback/grouping defects, profile default precedence, additive grouped response contracts, the OSS money inventory,
+  complete-path tests and data-preservation requirements. Historical design sections remain as context, not proof of
+  implementation. C1-C5 were resolved autonomously under owner decisions D1-D11.
+
 - The address editors' subdivision list is re-keyed from the profile's home country to the address's own country, and
   the sales channel and tax provider ship-from forms are wired to it, by
-  [`2026-09-19-us-state-dropdown-in-address-forms.md`](2026-09-19-us-state-dropdown-in-address-forms.md). Invariants 2
+  [`2026-09-19-us-state-dropdown-in-address-forms.md`](https://github.com/systevio/open-mercato/blob/46b0f6370/.ai/specs/2026-09-19-us-state-dropdown-in-address-forms.md). Invariants 2
   and 5 here are unchanged; `resolveAddressLayout` gains an optional trailing `options` argument.
 
 ### 2026-09-18

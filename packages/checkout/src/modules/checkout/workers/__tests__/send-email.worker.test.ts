@@ -1,6 +1,7 @@
 const sendEmail = jest.fn()
 const findOneWithDecryption = jest.fn()
 const resolveNotificationDeliveryConfig = jest.fn()
+const displayProfileResolver = { resolve: jest.fn() }
 
 jest.mock('@open-mercato/shared/lib/email/send', () => ({
   sendEmail: (...args: unknown[]) => sendEmail(...args),
@@ -62,6 +63,39 @@ describe('checkout send-email worker', () => {
         custom: {},
       },
     })
+    displayProfileResolver.resolve.mockResolvedValue({
+      code: 'us',
+      name: 'United States',
+      languageTag: 'en-US',
+      currencyCode: 'USD',
+      currencyDisplay: 'symbol',
+      decimalSeparator: '.',
+      thousandsSeparator: ',',
+      negativeStyle: 'minus',
+      dateFormat: 'MM/dd/yyyy',
+      dateTimeFormat: 'MM/dd/yyyy h:mm a',
+      timeFormat: 'h:mm a',
+      hourCycle: 'h12',
+      firstDayOfWeek: 0,
+      timeZone: 'America/Chicago',
+      addressLayout: 'us',
+      defaultCountryCode: 'US',
+      subdivisionRequired: true,
+      postalCodePattern: '^\\d{5}(-\\d{4})?$',
+      postalCodeLabelKey: 'markets.address.label.zipCode',
+      subdivisionLabelKey: 'markets.address.label.state',
+      addressLine2LabelKey: 'markets.address.label.aptSuiteUnit',
+      phoneNationalPattern: '(###) ###-####',
+      phoneDefaultDialCode: '+1',
+      measurementSystem: 'us_customary',
+      defaultWeightUnit: 'lb',
+      defaultLengthUnit: 'in',
+      lengthDisplay: 'feet_inches',
+      paperSize: 'letter',
+      pricePresentation: 'single_price_plus_tax',
+      taxLineLabelKey: 'markets.tax.label.salesTax',
+      taxNoteKey: 'markets.tax.note.calculatedAtOrder',
+    })
   })
 
   it('uses notification delivery sender settings for checkout emails', async () => {
@@ -97,6 +131,7 @@ describe('checkout send-email worker', () => {
       {
         resolve: (name: string) => {
           if (name === 'em') return { fork: () => ({}) }
+          if (name === 'displayProfileResolver') return displayProfileResolver
           throw new Error(`Missing dependency: ${name}`)
         },
       } as never,
@@ -110,5 +145,10 @@ describe('checkout send-email worker', () => {
         subject: 'Your Spring Gala ticket is confirmed',
       }),
     )
+    expect(sendEmail.mock.calls[0]?.[0]?.react).toEqual(expect.objectContaining({
+      amount: '33.00',
+      currencyCode: 'USD',
+      formattedAmount: '$33.00',
+    }))
   })
 })

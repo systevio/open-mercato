@@ -87,6 +87,18 @@ export default [
     plugins,
     rules: { 'om-ds/no-legacy-alert-variant': 'warn' },
   },
+  {
+    files: [
+      'packages/*/src/**/*.{ts,tsx}',
+      'apps/*/src/**/*.{ts,tsx}',
+      'packages/create-app/template/src/**/*.{ts,tsx}',
+    ],
+    ignores: ['**/__tests__/**', '**/__integration__/**', '**/*.generated.*', '**/dist/**'],
+    linterOptions,
+    languageOptions,
+    plugins,
+    rules: { 'om-ds/no-bespoke-money-format': 'warn' },
+  },
   // --- escalation overrides — see .ai/specs/2026-07-05-ds-lint-ci-escalation-and-alert-migration.md ---
   // A module enters this list when its counter for the rule reads zero in two
   // consecutive runs of the rolling report .ai/reports/ds-health-latest.txt —

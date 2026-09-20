@@ -44,6 +44,7 @@ import { buildOptimisticLockHeader } from '@open-mercato/ui/backend/utils/optimi
 import { surfaceRecordConflict } from '@open-mercato/ui/backend/conflicts'
 import { mapCrudServerErrorToFormErrors } from '@open-mercato/ui/backend/utils/serverErrors'
 import { useCurrentUserId } from '@open-mercato/ui/backend/utils/useCurrentUserId'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { AttachmentInput } from '@open-mercato/core/modules/attachments/fields/attachment'
 import {
@@ -73,6 +74,7 @@ import { claimTypeAllowsLineFinancialAdjustments, resolveClaimTypeUiConfig } fro
 import { isTerminal } from '../../../lib/stateMachine'
 import { isCustomerVisibleAttachment } from '../../../lib/attachmentVisibility'
 import { formatQuantity, parseQuantity, quantityInputValue } from '../../../lib/quantity'
+import { formatWarrantyAmount } from '../../../lib/displayMoney'
 import { localizeDictionaryLabel, type DictionaryLabelKind } from '../../../lib/dictionaryLabels'
 import {
   TIMELINE_FILTERS,
@@ -609,13 +611,6 @@ function readErrorKey(value: unknown): string | null {
   return isRecord(value) ? toStringOrNull(value.error) : null
 }
 
-function formatAmount(value: string | null, currencyCode: string | null, fallback: string): string {
-  const amount = toNumberOrNull(value)
-  if (amount === null) return fallback
-  if (!currencyCode) return amount.toLocaleString()
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency: currencyCode }).format(amount)
-}
-
 function eventIcon(kind: string) {
   if (kind === 'comment') return MessageSquare
   if (kind === 'assignment') return UserRound
@@ -761,6 +756,7 @@ export function InlineLineSelectCell({
 export default function WarrantyClaimDetailPage({ params }: { params?: { id?: string } }) {
   const t = useT()
   const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const router = useRouter()
   const id = typeof params?.id === 'string' ? params.id : ''
   const { confirm, ConfirmDialogElement } = useConfirmDialog()
@@ -1229,8 +1225,13 @@ export default function WarrantyClaimDetailPage({ params }: { params?: { id?: st
       })
       flash(
         t('warranty_claims.detail.createCreditMemoSuccess', undefined, {
-          amount: call?.result?.grandTotalGrossAmount ?? '',
-          currency: call?.result?.currencyCode ?? '',
+          amount: formatWarrantyAmount(
+            call?.result?.grandTotalGrossAmount,
+            call?.result?.currencyCode,
+            displayProfile,
+            locale,
+          ) ?? '',
+          currency: '',
         }),
         'success',
       )
@@ -1244,7 +1245,7 @@ export default function WarrantyClaimDetailPage({ params }: { params?: { id?: st
       const message = translateErrorMessage(err, t, 'warranty_claims.detail.error.action')
       flash(message, 'error')
     }
-  }, [claim, loadData, mutationContext, runMutation, t])
+  }, [claim, displayProfile, loadData, locale, mutationContext, runMutation, t])
 
   const performAssignment = React.useCallback(async (assigneeUserId: string | null) => {
     if (!claim) return false
@@ -1786,9 +1787,9 @@ export default function WarrantyClaimDetailPage({ params }: { params?: { id?: st
     {
       accessorKey: 'creditAmount',
       header: t('warranty_claims.detail.lines.column.credit'),
-      cell: ({ row }) => formatAmount(row.original.creditAmount, claim?.currencyCode ?? null, noValue),
+      cell: ({ row }) => formatWarrantyAmount(row.original.creditAmount, claim?.currencyCode, displayProfile, locale) ?? noValue,
     },
-  ], [allowedDispositions, claim?.currencyCode, linesInlineEditable, noValue, saveLineInlineField, t])
+  ], [allowedDispositions, claim?.currencyCode, displayProfile, linesInlineEditable, locale, noValue, saveLineInlineField, t])
 
   const transitionFields = React.useMemo<CrudField[]>(() => [
     {
@@ -2032,7 +2033,7 @@ export default function WarrantyClaimDetailPage({ params }: { params?: { id?: st
                   <div>
                     <p className="text-xs text-muted-foreground">{t('warranty_claims.detail.totalClaimed')}</p>
                     <p className="mt-1 text-base font-semibold text-foreground">
-                      {formatAmount(claim.totalClaimedAmount, claim.currencyCode, noValue)}
+                      {formatWarrantyAmount(claim.totalClaimedAmount, claim.currencyCode, displayProfile, locale) ?? noValue}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {t('warranty_claims.detail.lines.count', { count: lines.length })}
@@ -2041,7 +2042,7 @@ export default function WarrantyClaimDetailPage({ params }: { params?: { id?: st
                   <div className="xl:border-l xl:border-border xl:pl-5">
                     <p className="text-xs text-muted-foreground">{t('warranty_claims.detail.totalApproved')}</p>
                     <p className="mt-1 text-base font-semibold text-foreground">
-                      {formatAmount(claim.totalApprovedAmount, claim.currencyCode, noValue)}
+                      {formatWarrantyAmount(claim.totalApprovedAmount, claim.currencyCode, displayProfile, locale) ?? noValue}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {t('warranty_claims.detail.lines.approvedCount', { count: approvedLineCount })}
@@ -2050,7 +2051,7 @@ export default function WarrantyClaimDetailPage({ params }: { params?: { id?: st
                   <div className="xl:border-l xl:border-border xl:pl-5">
                     <p className="text-xs text-muted-foreground">{t('warranty_claims.detail.totalRecovered')}</p>
                     <p className="mt-1 text-base font-semibold text-foreground">
-                      {formatAmount(claim.totalRecoveredAmount, claim.currencyCode, noValue)}
+                      {formatWarrantyAmount(claim.totalRecoveredAmount, claim.currencyCode, displayProfile, locale) ?? noValue}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {claim.vendorName ?? t('warranty_claims.detail.lines.noVendorClaims')}

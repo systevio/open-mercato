@@ -1,6 +1,6 @@
 import { selectionForPreset } from '../backend/documents/components/templateUi'
 import { renderTemplateTokens } from '../lib/templateFill'
-import { clearOmittedOptionalSlotTokens } from '../lib/templateInstantiation'
+import { clearOmittedOptionalSlotTokens, materializeBuiltInMoneyTokens } from '../lib/templateInstantiation'
 import { DEFAULT_DOCUMENT_TEMPLATES } from '../lib/templateSeeds'
 import { resolveRelatedDocumentContext } from '../widgets/injection/related-documents/context'
 
@@ -95,5 +95,32 @@ describe('contextual template presets', () => {
       clearOmittedOptionalSlotTokens(meetingNotes.bodyHtml, meetingNotes.contextSlots, []),
       [],
     ).unresolvedTokens).toEqual([])
+  })
+
+  it('uses formatted money tokens in human templates while retaining raw token fields', () => {
+    const moneyTemplates = DEFAULT_DOCUMENT_TEMPLATES.filter((template) => (
+      ['deal-summary', 'deal-proposal', 'quote-cover-letter', 'order-handoff'].includes(template.seedKey)
+    ))
+
+    expect(moneyTemplates).toHaveLength(4)
+    for (const template of moneyTemplates) {
+      expect(template.bodyHtml).toMatch(/\.formatted(?:Value|Total)}}/)
+      expect(template.bodyHtml).not.toMatch(/}}\s+{{(?:deal\.valueCurrency|quote\.currency|order\.currency)}}/)
+    }
+  })
+
+  it('upgrades only the exact legacy money markup of managed built-in templates at render time', () => {
+    expect(materializeBuiltInMoneyTokens(
+      'quote-cover-letter',
+      '<p>Total: {{quote.total}} {{quote.currency}}</p>',
+    )).toBe('<p>Total: {{quote.formattedTotal}}</p>')
+    expect(materializeBuiltInMoneyTokens(
+      'quote-cover-letter',
+      '<p>Custom total: {{quote.total}} {{quote.currency}}</p>',
+    )).toBe('<p>Custom total: {{quote.total}} {{quote.currency}}</p>')
+    expect(materializeBuiltInMoneyTokens(
+      null,
+      '<p>Total: {{quote.total}} {{quote.currency}}</p>',
+    )).toBe('<p>Total: {{quote.total}} {{quote.currency}}</p>')
   })
 })

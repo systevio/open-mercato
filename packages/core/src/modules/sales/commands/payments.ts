@@ -44,8 +44,34 @@ import { resolveNotificationService } from '../../notifications/lib/notification
 import { buildFeatureNotificationFromType } from '../../notifications/lib/notificationBuilder'
 import { notificationTypes } from '../notifications'
 import { createLogger } from '@open-mercato/shared/lib/logger'
+import { formatMoney } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
 
 const logger = createLogger('sales')
+
+async function resolvePaymentDisplayProfile(
+  container: { resolve<T>(name: string): T },
+  scope: { tenantId: string; organizationId: string },
+): Promise<DisplayProfile | null> {
+  try {
+    const resolver = container.resolve<{
+      resolve(value: { tenantId: string; organizationId: string }): Promise<DisplayProfile | null>
+    }>('displayProfileResolver')
+    return await resolver.resolve(scope)
+  } catch {
+    return null
+  }
+}
+
+export function formatPaymentNotificationAmount(
+  amount: string | number | null | undefined,
+  currencyCode: string | null | undefined,
+  profile: DisplayProfile | null,
+): string {
+  if (amount === null || amount === undefined || !currencyCode) return ''
+  if (!profile) return `${currencyCode} ${amount}`
+  return formatMoney(amount, currencyCode, profile) ?? `${currencyCode} ${amount}`
+}
 
 export type PaymentAllocationSnapshot = {
   id: string
@@ -525,9 +551,15 @@ const createPaymentCommand: CommandHandler<
       const notificationService = resolveNotificationService(ctx.container)
       const typeDef = notificationTypes.find((type) => type.type === 'sales.payment.received')
       if (typeDef) {
-        const amountDisplay = payment.amount && payment.currencyCode
-          ? `${payment.currencyCode} ${payment.amount}`
-          : ''
+        const displayProfile = await resolvePaymentDisplayProfile(ctx.container, {
+          tenantId: payment.tenantId,
+          organizationId: payment.organizationId,
+        })
+        const amountDisplay = formatPaymentNotificationAmount(
+          payment.amount,
+          payment.currencyCode,
+          displayProfile,
+        )
         const notificationInput = buildFeatureNotificationFromType(typeDef, {
           requiredFeature: 'sales.orders.manage',
           bodyVariables: {

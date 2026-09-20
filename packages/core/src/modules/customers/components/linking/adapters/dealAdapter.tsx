@@ -5,6 +5,8 @@ import { AlertTriangle, Briefcase, CalendarDays, Link2 } from 'lucide-react'
 import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { Avatar } from '@open-mercato/ui/primitives/avatar'
 import { cn } from '@open-mercato/shared/lib/utils'
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
 import type {
   LinkEntityAdapter,
   LinkEntityOption,
@@ -42,6 +44,8 @@ type DealAdapterOptions = {
   addNew?: LinkEntityAdapter<DealDetails>['addNew']
   contextEntityId?: string
   headerIcon?: React.ReactNode
+  locale?: string
+  displayProfile?: DisplayProfile | null
 }
 
 const DEFAULT_PAGE_SIZE = 20
@@ -243,12 +247,22 @@ async function fetchDealDetails(id: string, contextEntityId?: string): Promise<D
   }
 }
 
-function formatValue(amount: string | null, currency: string | null): string | null {
+function formatValue(
+  amount: string | null,
+  currency: string | null,
+  locale?: string,
+  displayProfile?: DisplayProfile | null,
+): string | null {
   if (!amount) return null
   const parsed = parseFloat(amount)
   if (!Number.isFinite(parsed)) return amount
-  const formatted = parsed.toLocaleString(undefined, { maximumFractionDigits: 2 })
-  return currency ? `${formatted} ${currency}` : formatted
+  if (!displayProfile) {
+    const formatted = parsed.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    return currency ? `${formatted} ${currency}` : formatted
+  }
+  return currency
+    ? formatMoney(parsed, currency, displayProfile, { locale, maximumFractionDigits: 2 })
+    : formatNumber(parsed, displayProfile, { locale, maximumFractionDigits: 2 })
 }
 
 function formatRelative(dateString: string | null): string {
@@ -363,7 +377,12 @@ export function createDealLinkAdapter(options: DealAdapterOptions): LinkEntityAd
       isOrphan?: boolean
       companyName?: string | null
     }
-    const formattedValue = formatValue(meta.valueAmount ?? null, meta.valueCurrency ?? null)
+    const formattedValue = formatValue(
+      meta.valueAmount ?? null,
+      meta.valueCurrency ?? null,
+      options.locale,
+      options.displayProfile,
+    )
     return (
       <>
         <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted/80 text-muted-foreground">
@@ -453,7 +472,9 @@ export function createDealLinkAdapter(options: DealAdapterOptions): LinkEntityAd
       anchors: undefined,
     }
     const isOrphan = meta.isOrphan || (derived.anchors ? derived.anchors.companies === 0 : false)
-    const formattedValue = derived.value ? formatValue(derived.value.amount, derived.value.currency) : null
+    const formattedValue = derived.value
+      ? formatValue(derived.value.amount, derived.value.currency, options.locale, options.displayProfile)
+      : null
     const createdRel = derived.createdAt ? `Created ${formatRelative(derived.createdAt)}` : null
     return (
       <div className="flex flex-col gap-3.5 rounded-xl border border-border/70 bg-card p-4">

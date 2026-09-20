@@ -3,6 +3,8 @@ import {
   type DocumentEntityType,
   type EntityPickerItem,
 } from './entityRegistry'
+import { formatMoney } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
 
 export type TemplateFillSlot = {
   slot: string
@@ -17,6 +19,7 @@ export type TemplateFillSlot = {
 export type FillTemplateTokensOptions = {
   locale?: string
   now?: Date
+  displayProfile?: DisplayProfile | null
 }
 
 export type TemplateRenderResult = {
@@ -67,14 +70,29 @@ function buildEntityChip(slot: TemplateFillSlot): string | null {
 function resolveTokenValue(
   slot: TemplateFillSlot,
   field: string,
+  options: FillTemplateTokensOptions,
 ): { resolved: boolean; value: string } {
+  const entry = getEntityRegistryEntry(slot.entityType)
+  const tokenField = entry?.tokenFields.find((candidate) => candidate.field === field)
+  if (tokenField?.money) {
+    const amount = resolveTokenValue(slot, tokenField.money.amountField, options)
+    const currency = resolveTokenValue(slot, tokenField.money.currencyField, options)
+    const numeric = amount.resolved && amount.value.trim() !== '' ? Number(amount.value) : Number.NaN
+    const currencyCode = currency.resolved && /^[A-Za-z]{3}$/.test(currency.value.trim())
+      ? currency.value.trim().toUpperCase()
+      : null
+    if (!Number.isFinite(numeric) || !currencyCode) return { resolved: false, value: '' }
+    return {
+      resolved: true,
+      value: formatMoney(numeric, currencyCode, options.displayProfile, { locale: options.locale }) ?? '',
+    }
+  }
+
   if (slot.values && Object.prototype.hasOwnProperty.call(slot.values, field)) {
     const value = slot.values[field]
     return { resolved: true, value: value == null ? '' : String(value) }
   }
 
-  const entry = getEntityRegistryEntry(slot.entityType)
-  const tokenField = entry?.tokenFields.find((candidate) => candidate.field === field)
   if (!tokenField || !slot.rawItem) return { resolved: false, value: '' }
   const value = tokenField.extract(slot.rawItem)
   return value == null ? { resolved: false, value: '' } : { resolved: true, value }
@@ -109,7 +127,7 @@ export function renderTemplateTokens(
     if (chip != null) filled = replaceToken(filled, `${slot.slot}.chip`, chip)
 
     for (const tokenField of entry.tokenFields) {
-      const resolved = resolveTokenValue(slot, tokenField.field)
+      const resolved = resolveTokenValue(slot, tokenField.field, options)
       if (!resolved.resolved) continue
       filled = replaceToken(
         filled,

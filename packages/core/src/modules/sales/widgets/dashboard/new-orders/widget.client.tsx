@@ -19,6 +19,7 @@ import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { DEFAULT_SETTINGS, hydrateSalesNewOrdersSettings, type DatePeriodOption, type SalesNewOrdersSettings } from './config'
 import { readString, toDateInputValue, openNativeDatePicker, formatAmount } from '../shared'
 import { createLogger } from '@open-mercato/shared/lib/logger'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 
 const logger = createLogger('sales')
 
@@ -97,6 +98,7 @@ const SalesNewOrdersWidget: React.FC<DashboardWidgetComponentProps<SalesNewOrder
   refreshToken,
   onRefreshStateChange,
 }) => {
+  const displayProfile = useDisplayProfile()
   const translate = useT()
   const hydrated = React.useMemo(() => hydrateSalesNewOrdersSettings(settings), [settings])
   const [items, setItems] = React.useState<NewOrderItem[]>([])
@@ -235,7 +237,7 @@ const SalesNewOrdersWidget: React.FC<DashboardWidgetComponentProps<SalesNewOrder
     <ul className="space-y-3">
       {items.map((item) => {
         const detailHref = resolveDetailHref(item)
-        const amountLabel = formatAmount(item.grossAmount, item.currency, locale)
+        const amountLabel = formatAmount(item.grossAmount, item.currency, locale, displayProfile)
         const createdLabel = formatRelativeTime(item.createdAt) ?? ''
         return (
           <li key={item.id} className="rounded-md border p-3">

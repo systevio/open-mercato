@@ -1,13 +1,26 @@
-export function formatCurrency(amount: string | null, currency: string | null): string | null {
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
+
+export function formatCurrency(
+  amount: string | null,
+  currency: string | null,
+  profile?: DisplayProfile | null,
+  locale?: string,
+): string | null {
   if (!amount) return null
   const parsed = Number(amount)
   if (!Number.isFinite(parsed)) return currency ? `${amount} ${currency}` : amount
-  if (!currency) return parsed.toLocaleString()
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(parsed)
-  } catch {
-    return `${parsed.toLocaleString()} ${currency}`
+  if (!profile) {
+    if (!currency) return parsed.toLocaleString()
+    try {
+      return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(parsed)
+    } catch {
+      return `${parsed.toLocaleString()} ${currency}`
+    }
   }
+  return currency
+    ? formatMoney(parsed, currency, profile, { locale })
+    : formatNumber(parsed, profile, { locale })
 }
 
 export function startOfNextQuarter(baseDate: Date): Date {

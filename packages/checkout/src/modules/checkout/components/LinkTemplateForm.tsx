@@ -44,6 +44,8 @@ import { getGatewayProviderConfigurationMessageKey } from '../lib/gatewayProvide
 import { readCustomerFieldsSectionError } from '../lib/customerFieldErrors'
 import { isRecordNotFoundError } from '../lib/recordNotFound'
 import { CheckoutCurrencySelect } from './CheckoutCurrencySelect'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
+import { resolvePristineCurrencyDefault } from '../lib/defaultCurrency'
 import { CustomerFieldsEditor } from './CustomerFieldsEditor'
 import { GatewaySettingsFields } from './GatewaySettingsFields'
 import { LogoUploadField } from './LogoUploadField'
@@ -125,7 +127,7 @@ function createDefaultLegalDocuments(): LegalDocumentsValue {
   }
 }
 
-function createDefaultValues(t?: TranslateFn): FormValues {
+function createDefaultValues(t?: TranslateFn, currencyCode = 'USD'): FormValues {
   return {
     name: '',
     title: '',
@@ -139,12 +141,12 @@ function createDefaultValues(t?: TranslateFn): FormValues {
     displayCustomFieldsOnPage: false,
     pricingMode: 'fixed',
     fixedPriceAmount: null,
-    fixedPriceCurrencyCode: 'USD',
+    fixedPriceCurrencyCode: currencyCode,
     fixedPriceIncludesTax: true,
     fixedPriceOriginalAmount: null,
     customAmountMin: null,
     customAmountMax: null,
-    customAmountCurrencyCode: 'USD',
+    customAmountCurrencyCode: currencyCode,
     priceListItems: [],
     gatewayProviderKey: '',
     gatewaySettings: {},
@@ -187,7 +189,7 @@ function normalizePriceListItems(value: unknown): PriceListItem[] {
         id: id || `item_${Date.now()}`,
         description,
         amount: Number.isFinite(amount) ? amount : 0,
-        currencyCode: currencyCode || 'USD',
+        currencyCode,
       }
     })
     .filter((item): item is PriceListItem => item !== null)
@@ -272,8 +274,12 @@ function normalizeFormValues(value: FormValues | null | undefined, t?: Translate
     customerFieldsSchema: normalizeCustomerFields(source.customerFieldsSchema, t),
     legalDocuments: normalizeLegalDocuments(source.legalDocuments),
     priceListItems: normalizePriceListItems(source.priceListItems),
-    fixedPriceCurrencyCode: readString(source.fixedPriceCurrencyCode).trim().toUpperCase() || 'USD',
-    customAmountCurrencyCode: readString(source.customAmountCurrencyCode).trim().toUpperCase() || 'USD',
+    fixedPriceCurrencyCode: 'fixedPriceCurrencyCode' in source
+      ? readString(source.fixedPriceCurrencyCode).trim().toUpperCase()
+      : defaults.fixedPriceCurrencyCode,
+    customAmountCurrencyCode: 'customAmountCurrencyCode' in source
+      ? readString(source.customAmountCurrencyCode).trim().toUpperCase()
+      : defaults.customAmountCurrencyCode,
     sendStartEmail: readBoolean(source.sendStartEmail, true),
     sendSuccessEmail: readBoolean(source.sendSuccessEmail, true),
     sendErrorEmail: readBoolean(source.sendErrorEmail, true),
@@ -380,10 +386,12 @@ export function PriceListEditor({
   value,
   onChange,
   error,
+  fallbackCurrencyCode,
 }: {
   value: PriceListItem[]
   onChange: (next: PriceListItem[]) => void
   error?: string
+  fallbackCurrencyCode?: string
 }) {
   const t = useT()
   const locale = useLocale()
@@ -403,10 +411,10 @@ export function PriceListEditor({
         id: `item_${items.length + 1}`,
         description: '',
         amount: 0,
-        currencyCode: items[0]?.currencyCode ?? 'USD',
+        currencyCode: items[0]?.currencyCode || fallbackCurrencyCode || '',
       },
     ])
-  }, [items, onChange])
+  }, [fallbackCurrencyCode, items, onChange])
 
   return (
     <div className="space-y-4">
@@ -563,7 +571,7 @@ export function PricingSection({ values, setValue, errors }: CrudFormGroupCompon
 
           <SectionLabel label={t('checkout.linkTemplateForm.pricing.fields.currency')} error={fixedPriceCurrencyError} required>
             <CheckoutCurrencySelect
-              value={readString(values.fixedPriceCurrencyCode) || 'USD'}
+              value={readString(values.fixedPriceCurrencyCode)}
               onChange={(next) => setValue('fixedPriceCurrencyCode', next)}
               placeholder={t('checkout.currencySelect.placeholder')}
             />
@@ -626,7 +634,7 @@ export function PricingSection({ values, setValue, errors }: CrudFormGroupCompon
 
           <SectionLabel label={t('checkout.linkTemplateForm.pricing.fields.currency')} error={customAmountCurrencyError} required>
             <CheckoutCurrencySelect
-              value={readString(values.customAmountCurrencyCode) || 'USD'}
+              value={readString(values.customAmountCurrencyCode)}
               onChange={(next) => setValue('customAmountCurrencyCode', next)}
               placeholder={t('checkout.currencySelect.placeholder')}
             />
@@ -639,6 +647,7 @@ export function PricingSection({ values, setValue, errors }: CrudFormGroupCompon
           value={normalizePriceListItems(values.priceListItems)}
           onChange={(next) => setValue('priceListItems', next)}
           error={priceListItemsError}
+          fallbackCurrencyCode={readString(values.fixedPriceCurrencyCode) || readString(values.customAmountCurrencyCode)}
         />
       ) : null}
     </div>
@@ -1318,6 +1327,7 @@ function SettingsSection({ values, setValue, errors }: CrudFormGroupComponentPro
 
 export function LinkTemplateForm({ mode, recordId }: Props) {
   const t = useT()
+  const displayProfile = useDisplayProfile()
   const searchParams = useSearchParams()
   const entityId = mode === 'link' ? CHECKOUT_ENTITY_IDS.link : CHECKOUT_ENTITY_IDS.template
   const templateId = React.useMemo(() => {
@@ -1333,10 +1343,34 @@ export function LinkTemplateForm({ mode, recordId }: Props) {
   const [templateOptions, setTemplateOptions] = React.useState<ComboboxOption[]>([])
   const [isApplyingTemplate, setIsApplyingTemplate] = React.useState(false)
   const [formInstanceKey, setFormInstanceKey] = React.useState(0)
-  const [initialValues, setInitialValues] = React.useState<FormValues | null>(
-    recordId ? null : normalizeFormValues(createDefaultValues(t), t),
-  )
+  const [initialValues, setInitialValues] = React.useState<FormValues | null>(null)
+  const [defaultCurrencyCode, setDefaultCurrencyCode] = React.useState('USD')
   const [notFound, setNotFound] = React.useState(false)
+
+  React.useEffect(() => {
+    if (recordId) return
+    let active = true
+    void readApiResultOrThrow<{ entries?: Array<{ value?: string | null }> }>(
+      '/api/customers/dictionaries/currency',
+    )
+      .then((payload) => {
+        if (!active) return
+        const supported = (payload.entries ?? []).flatMap((entry) => {
+            const code = typeof entry.value === 'string' ? entry.value.trim().toUpperCase() : ''
+            return code ? [code] : []
+          })
+        const nextCurrency = resolvePristineCurrencyDefault(displayProfile?.currencyCode, supported)
+        setDefaultCurrencyCode(nextCurrency)
+        setInitialValues((current) => current ?? normalizeFormValues(createDefaultValues(t, nextCurrency), t))
+      })
+      .catch(() => {
+        if (!active) return
+        setInitialValues((current) => current ?? normalizeFormValues(createDefaultValues(t), t))
+      })
+    return () => {
+      active = false
+    }
+  }, [displayProfile?.currencyCode, recordId, t])
 
   const replaceInitialValues = React.useCallback((nextValues: FormValues) => {
     setInitialValues(nextValues)
@@ -1396,7 +1430,7 @@ export function LinkTemplateForm({ mode, recordId }: Props) {
   const applyTemplate = React.useCallback(async (nextTemplateId: string | null) => {
     if (recordId || mode !== 'link') return
     if (!nextTemplateId) {
-      replaceInitialValues(normalizeFormValues(createDefaultValues(t), t))
+      replaceInitialValues(normalizeFormValues(createDefaultValues(t, defaultCurrencyCode), t))
       return
     }
     setIsApplyingTemplate(true)
@@ -1419,7 +1453,7 @@ export function LinkTemplateForm({ mode, recordId }: Props) {
     } finally {
       setIsApplyingTemplate(false)
     }
-  }, [mode, recordId, rememberTemplateOptions, replaceInitialValues, t])
+  }, [defaultCurrencyCode, mode, recordId, rememberTemplateOptions, replaceInitialValues, t])
 
   React.useEffect(() => {
     if (mode !== 'link' || recordId) return

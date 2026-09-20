@@ -201,6 +201,8 @@
   "documents.entityFields.currency": "Moneda",
   "documents.entityFields.description": "Descripción",
   "documents.entityFields.email": "Correo",
+  "documents.entityFields.formattedTotal": "Total con formato",
+  "documents.entityFields.formattedValue": "Valor con formato",
   "documents.entityFields.name": "Nombre",
   "documents.entityFields.number": "Número",
   "documents.entityFields.phone": "Teléfono",

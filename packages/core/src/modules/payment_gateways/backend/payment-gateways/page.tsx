@@ -20,6 +20,8 @@ import { Button } from '@open-mercato/ui/primitives/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@open-mercato/ui/primitives/card'
 import { Spinner } from '@open-mercato/ui/primitives/spinner'
 import { LogList, type LogListEntry } from '@open-mercato/ui/backend/LogList'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
+import { formatGatewayTransactionAmount } from '../../lib/displayMoney'
 import { CreditCard, HandCoins, RefreshCw, Webhook } from 'lucide-react'
 
 type TransactionRow = {
@@ -112,19 +114,6 @@ function formatDateTime(value: string | null | undefined): string {
   return parsed.toLocaleString()
 }
 
-function formatAmount(value: string, currencyCode: string): string {
-  const amount = Number(value)
-  if (Number.isNaN(amount)) return `${value} ${currencyCode}`
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: currencyCode,
-    }).format(amount)
-  } catch {
-    return `${amount.toFixed(2)} ${currencyCode}`
-  }
-}
-
 function formatTypeLabel(value: string): string {
   return value
     .split('_')
@@ -178,6 +167,7 @@ function DetailStat({ label, value }: { label: string; value: React.ReactNode })
 
 export default function PaymentTransactionsPage() {
   const t = useT()
+  const displayProfile = useDisplayProfile()
   const searchParams = useSearchParams()
   const scopeVersion = useOrganizationScopeVersion()
   const [rows, setRows] = React.useState<TransactionRow[]>([])
@@ -429,7 +419,7 @@ export default function PaymentTransactionsPage() {
     {
       accessorKey: 'amount',
       header: t('payment_gateways.transactions.columns.amount', 'Amount'),
-      cell: ({ row }) => formatAmount(row.original.amount, row.original.currencyCode),
+      cell: ({ row }) => formatGatewayTransactionAmount(row.original.amount, row.original.currencyCode, displayProfile),
     },
     {
       accessorKey: 'providerSessionId',
@@ -446,7 +436,7 @@ export default function PaymentTransactionsPage() {
       header: t('payment_gateways.transactions.columns.updatedAt', 'Updated'),
       cell: ({ row }) => formatDateTime(row.original.updatedAt),
     },
-  ], [t])
+  ], [displayProfile, t])
 
   const selectedSummary = React.useMemo(
     () => rows.find((row) => row.id === selectedId) ?? null,
@@ -552,7 +542,7 @@ export default function PaymentTransactionsPage() {
                     />
                     <DetailStat
                       label={t('payment_gateways.transactions.detail.summary.amount', 'Amount')}
-                      value={formatAmount(detail.transaction.amount, detail.transaction.currencyCode)}
+                      value={formatGatewayTransactionAmount(detail.transaction.amount, detail.transaction.currencyCode, displayProfile)}
                     />
                     <DetailStat
                       label={t('payment_gateways.transactions.detail.summary.provider', 'Provider')}

@@ -18,6 +18,7 @@ export type EntityTokenField = {
   field: string
   labelKey: string
   extract: (item: Record<string, unknown>) => string | null
+  money?: { amountField: string; currencyField: string }
 }
 
 export type EntityRegistryEntry = {
@@ -175,6 +176,20 @@ function field(fieldName: string, labelKey: string, keys: string[]): EntityToken
   }
 }
 
+function formattedMoneyField(
+  fieldName: string,
+  labelKey: string,
+  amountField: string,
+  currencyField: string,
+): EntityTokenField {
+  return {
+    field: fieldName,
+    labelKey,
+    extract: () => null,
+    money: { amountField, currencyField },
+  }
+}
+
 function exactIdPath(pathPrefix: string, id: string): string {
   return `${pathPrefix}/${id}`
 }
@@ -252,6 +267,12 @@ export const DOCUMENT_ENTITY_REGISTRY: DocumentEntityRegistryEntry[] = [
       field('status', 'documents.entityFields.status', ['status']),
       field('value', 'documents.entityFields.value', ['value', 'valueAmount', 'value_amount']),
       field('valueCurrency', 'documents.entityFields.valueCurrency', ['valueCurrency', 'value_currency']),
+      formattedMoneyField(
+        'formattedValue',
+        'documents.entityFields.formattedValue',
+        'value',
+        'valueCurrency',
+      ),
     ],
   }),
   buildIdAddressableEntry({
@@ -302,6 +323,12 @@ export const DOCUMENT_ENTITY_REGISTRY: DocumentEntityRegistryEntry[] = [
       field('status', 'documents.entityFields.status', ['status']),
       field('total', 'documents.entityFields.total', ['grandTotalGross', 'grand_total_gross', 'total']),
       field('currency', 'documents.entityFields.currency', ['currencyCode', 'currency_code']),
+      formattedMoneyField(
+        'formattedTotal',
+        'documents.entityFields.formattedTotal',
+        'total',
+        'currency',
+      ),
     ],
   }),
   buildIdAddressableEntry({
@@ -318,6 +345,12 @@ export const DOCUMENT_ENTITY_REGISTRY: DocumentEntityRegistryEntry[] = [
       field('status', 'documents.entityFields.status', ['status']),
       field('total', 'documents.entityFields.total', ['grandTotalGross', 'grand_total_gross', 'total']),
       field('currency', 'documents.entityFields.currency', ['currencyCode', 'currency_code']),
+      formattedMoneyField(
+        'formattedTotal',
+        'documents.entityFields.formattedTotal',
+        'total',
+        'currency',
+      ),
     ],
   }),
   buildIdAddressableEntry({

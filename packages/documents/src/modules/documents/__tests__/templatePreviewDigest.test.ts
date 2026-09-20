@@ -72,6 +72,22 @@ describe('template preview digest', () => {
     expect(computeTemplatePreviewDigest(whitespace)).not.toBe(computeTemplatePreviewDigest(vector()))
   })
 
+  it('changes when money presentation changes without altering legacy vectors', () => {
+    const us = vector()
+    us.moneyPresentation = {
+      languageTag: 'en-US',
+      currencyDisplay: 'symbol',
+      decimalSeparator: '.',
+      thousandsSeparator: ',',
+      negativeStyle: 'minus',
+    }
+    const codeDisplay = vector()
+    codeDisplay.moneyPresentation = { ...us.moneyPresentation, currencyDisplay: 'code' }
+
+    expect(computeTemplatePreviewDigest(us)).not.toBe(computeTemplatePreviewDigest(vector()))
+    expect(computeTemplatePreviewDigest(codeDisplay)).not.toBe(computeTemplatePreviewDigest(us))
+  })
+
   it('rejects duplicate slots and non-finite numbers instead of coercing', () => {
     const duplicate = vector()
     duplicate.slots.push({ ...duplicate.slots[0]! })

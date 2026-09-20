@@ -21,6 +21,9 @@ import { BooleanIcon } from '@open-mercato/ui/backend/ValueIcons'
 import { markdownToPlainText } from '@open-mercato/ui/backend/markdown/markdownToPlainText'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useAppEvent } from '@open-mercato/ui/backend/injection/useAppEvent'
 import { E } from '#generated/entities.ids.generated'
@@ -132,11 +135,21 @@ function renderOffers(offers: OfferInfo[] | undefined): React.ReactNode {
   )
 }
 
-function renderPrice(pricing: PricingInfo | undefined, currency?: string | null, fallback = '—'): React.ReactNode {
+export function renderPrice(
+  pricing: PricingInfo | undefined,
+  currency?: string | null,
+  fallback = '—',
+  profile?: DisplayProfile | null,
+): React.ReactNode {
   if (!pricing) return <span className="text-xs text-muted-foreground">{fallback}</span>
   const unit = pricing.unit_price_net ?? pricing.unit_price_gross
   if (unit == null) return <span className="text-xs text-muted-foreground">{fallback}</span>
-  const formatted = `${currency ?? pricing.currency_code ?? ''} ${unit}`
+  const currencyCode = currency ?? pricing.currency_code
+  const formatted = !profile
+    ? `${currencyCode ?? ''} ${unit}`
+    : (currencyCode
+        ? formatMoney(unit, currencyCode, profile)
+        : formatNumber(unit, profile)) ?? fallback
   const kind = pricing.kind ?? 'list'
   return (
     <div className="flex flex-col">
@@ -172,6 +185,7 @@ export default function ProductsDataTable({
   onSnapshotChange,
 }: ProductsDataTableProps = {}) {
   const t = useT()
+  const displayProfile = useDisplayProfile()
   const { confirm, ConfirmDialogElement } = useConfirmDialog()
   const scopeVersion = useOrganizationScopeVersion()
   const [rows, setRows] = React.useState<ProductRow[]>([])
@@ -457,7 +471,7 @@ export default function ProductsDataTable({
       {
         accessorKey: 'pricing',
         header: t('catalog.products.table.price'),
-        cell: ({ row }) => renderPrice(row.original.pricing, row.original.primary_currency_code),
+        cell: ({ row }) => renderPrice(row.original.pricing, row.original.primary_currency_code, '—', displayProfile),
       },
       {
         accessorKey: 'offers',
@@ -471,7 +485,7 @@ export default function ProductsDataTable({
       },
     ]
     return applyCustomFieldVisibility(base, customFieldDefs)
-  }, [customFieldDefs, productTypeLabelMap, t])
+  }, [customFieldDefs, displayProfile, productTypeLabelMap, t])
 
   const handleSearchChange = React.useCallback((value: string) => {
     setSearch(value)

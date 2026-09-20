@@ -59,8 +59,9 @@ import { useGuardedMutation } from '@open-mercato/ui/backend/injection/useGuarde
 import { useBackendChrome } from '@open-mercato/ui/backend/BackendChromeProvider'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { formatCurrency } from '@open-mercato/ui/utils/format'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { hasFeature } from '@open-mercato/shared/security/features'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { createLogger } from '@open-mercato/shared/lib/logger'
 import { CustomerPicker, type CustomerSelection } from '../../../../../lib/time-tracking-ui/CustomerPicker'
@@ -119,6 +120,8 @@ function readRows(payload: unknown): Array<Record<string, unknown>> {
 
 export default function TimeTrackingReportCreatePage() {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const router = useRouter()
   const searchParams = useSearchParams()
   const scopeVersion = useOrganizationScopeVersion()
@@ -342,7 +345,7 @@ export default function TimeTrackingReportCreatePage() {
   const money = React.useCallback(
     (amount: number | null | undefined) => {
       if (amount === null || amount === undefined) return '—'
-      return formatCurrency(amount, currencyCode ?? undefined) ?? '—'
+      return formatCurrency(amount, currencyCode ?? undefined, locale, displayProfile) ?? '—'
     },
     [currencyCode],
   )

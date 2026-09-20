@@ -16,6 +16,8 @@ import { Badge } from '@open-mercato/ui/primitives/badge'
 import { apiCallOrThrow, readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { normalizeCrudServerError } from '@open-mercato/ui/backend/utils/serverErrors'
 import { ListEmptyState } from '@open-mercato/ui/backend/filters/ListEmptyState'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
+import { formatCheckoutMoney } from '../../../lib/displayMoney'
 
 type LinkRow = {
   id: string
@@ -48,6 +50,7 @@ function formatDate(value: string | null | undefined): string {
 
 export default function CheckoutPayLinksPage() {
   const t = useT()
+  const displayProfile = useDisplayProfile()
   const [rows, setRows] = React.useState<LinkRow[]>([])
   const [page, setPage] = React.useState(1)
   const [search, setSearch] = React.useState('')
@@ -150,15 +153,15 @@ export default function CheckoutPayLinksPage() {
       cell: ({ row }) => {
         if (row.original.pricingMode === 'fixed') {
           return t('checkout.admin.payLinks.pricing.fixed', {
-            amount: row.original.fixedPriceAmount?.toFixed(2) ?? '0.00',
-            currency: row.original.fixedPriceCurrencyCode ?? '',
+            amount: formatCheckoutMoney(row.original.fixedPriceAmount, row.original.fixedPriceCurrencyCode, displayProfile),
+            currency: '',
           }).trim()
         }
         if (row.original.pricingMode === 'custom_amount') {
           return t('checkout.admin.payLinks.pricing.customAmount', {
-            min: row.original.customAmountMin?.toFixed(2) ?? '0.00',
-            max: row.original.customAmountMax?.toFixed(2) ?? '0.00',
-            currency: row.original.customAmountCurrencyCode ?? '',
+            min: formatCheckoutMoney(row.original.customAmountMin, row.original.customAmountCurrencyCode, displayProfile),
+            max: formatCheckoutMoney(row.original.customAmountMax, row.original.customAmountCurrencyCode, displayProfile),
+            currency: '',
           }).trim()
         }
         return t('checkout.linkTemplateForm.pricing.modes.priceList')
@@ -183,7 +186,7 @@ export default function CheckoutPayLinksPage() {
       header: t('checkout.admin.payLinks.columns.created'),
       cell: ({ row }) => formatDate(row.original.createdAt),
     },
-  ], [t])
+  ], [displayProfile, t])
 
   return (
     <Page>

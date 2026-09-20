@@ -17,7 +17,7 @@ import { useGuardedMutation } from '@open-mercato/ui/backend/injection/useGuarde
 import { InjectionSpot, useInjectionWidgets } from '@open-mercato/ui/backend/injection/InjectionSpot'
 import { extensionPoints } from '@open-mercato/core/modules/staff/extension-points'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { LoadingMessage } from '@open-mercato/ui/backend/detail'
 import { ErrorMessage, RecordNotFoundState } from '@open-mercato/ui/backend/detail'
@@ -26,6 +26,7 @@ import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { createLogger } from '@open-mercato/shared/lib/logger'
 import { formatCurrency } from '@open-mercato/ui/utils/format'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { KpiCard, Sparkline } from '@open-mercato/ui/backend/charts'
 import { ProjectTeamDrawer } from '../../../../../lib/time-tracking-ui/ProjectTeamDrawer'
 import { NoProjectAccess } from '../../../../../lib/time-tracking-ui/NoProjectAccess'
@@ -165,6 +166,8 @@ function RailFact({ label, value }: { label: string; value: React.ReactNode }) {
 export default function TimesheetProjectDetailPage({ params }: { params?: { id?: string } }) {
   const projectId = params?.id
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const scopeVersion = useOrganizationScopeVersion()
   const { confirm, ConfirmDialogElement } = useConfirmDialog()
   const router = useRouter()
@@ -746,7 +749,7 @@ export default function TimesheetProjectDetailPage({ params }: { params?: { id?:
         })
       : t('staff.timesheets.projects.detail.budgetAmount', '{percent}% of {value}', {
           percent: budgetBurn.percent,
-          value: formatCurrency(budgetBurn.budgetValue, currencyCode ?? undefined) ?? String(budgetBurn.budgetValue),
+          value: formatCurrency(budgetBurn.budgetValue, currencyCode ?? undefined, locale, displayProfile) ?? String(budgetBurn.budgetValue),
         })
     : null
 
@@ -908,13 +911,13 @@ export default function TimesheetProjectDetailPage({ params }: { params?: { id?:
               <KpiCard
                 title={t('staff.timesheets.projects.detail.cost', 'Cost to date')}
                 value={cost}
-                formatValue={(value) => formatCurrency(value, currencyCode ?? undefined) ?? String(value)}
+                formatValue={(value) => formatCurrency(value, currencyCode ?? undefined, locale, displayProfile) ?? String(value)}
                 footer={
                   hourlyRate !== null ? (
                     <span className="text-xs text-muted-foreground">
                       {t('staff.timesheets.projects.detail.costBasis', '{hours} × {rate}', {
                         hours: formatHours(billableMinutes),
-                        rate: `${formatCurrency(hourlyRate, currencyCode ?? undefined) ?? hourlyRate}/h`,
+                        rate: `${formatCurrency(hourlyRate, currencyCode ?? undefined, locale, displayProfile) ?? hourlyRate}/h`,
                       })}
                     </span>
                   ) : undefined
@@ -1234,7 +1237,7 @@ export default function TimesheetProjectDetailPage({ params }: { params?: { id?:
                       value={
                         hourlyRate === null
                           ? '—'
-                          : `${formatCurrency(hourlyRate, currencyCode ?? undefined) ?? hourlyRate} / h`
+                          : `${formatCurrency(hourlyRate, currencyCode ?? undefined, locale, displayProfile) ?? hourlyRate} / h`
                       }
                     />
                     <RailFact

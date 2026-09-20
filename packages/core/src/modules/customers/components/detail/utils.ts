@@ -1,6 +1,8 @@
 "use client"
 
 import type { DictionarySelectLabels } from '@open-mercato/core/modules/dictionaries/components/DictionaryEntrySelect'
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
 import type { CustomerDictionaryKind } from '../../lib/dictionaries'
 import { CUSTOMER_INTERACTION_TASK_SOURCE, CUSTOMER_INTERACTION_TASK_TYPE } from '../../lib/interactionCompatibility'
 import { WORKFLOW_TASK_TODO_SOURCE, workflowTaskHref } from '../../lib/workflowTaskLink'
@@ -160,7 +162,20 @@ export function createDictionarySelectLabels(
  * Omitting it keeps the runtime default, which varies per machine and is therefore not
  * assertable in tests.
  */
-export function formatCurrency(amount: number, currency?: string | null, locale?: string): string {
+export function formatCurrency(
+  amount: number,
+  currency?: string | null,
+  locale?: string,
+  profile?: DisplayProfile | null,
+): string {
+  if (profile) {
+    const code = typeof currency === 'string' && /^[A-Za-z]{3}$/.test(currency.trim())
+      ? currency
+      : null
+    return (code
+      ? formatMoney(amount, code, profile, { locale })
+      : formatNumber(amount, profile, { locale })) ?? String(amount)
+  }
   try {
     return new Intl.NumberFormat(locale, {
       style: 'currency',

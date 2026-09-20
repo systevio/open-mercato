@@ -55,7 +55,8 @@ import { useBackendChrome } from '@open-mercato/ui/backend/BackendChromeProvider
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { hasFeature } from '@open-mercato/shared/security/features'
 import { formatCurrency } from '@open-mercato/ui/utils/format'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import { createLogger } from '@open-mercato/shared/lib/logger'
 import { DurationInput } from '../../../lib/time-tracking-ui/DurationInput'
 import {
@@ -182,6 +183,8 @@ function formatClockRange(entry: MyWorkEntry, locale?: string): string | null {
 
 export default function TimeTrackingMyWorkPage() {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const scopeVersion = useOrganizationScopeVersion()
   const { payload: chrome } = useBackendChrome()
   const canManageOwn = hasFeature(chrome?.grantedFeatures, MANAGE_OWN_FEATURE)
@@ -733,7 +736,7 @@ export default function TimeTrackingMyWorkPage() {
                               project.customerName,
                               project.hourlyRate != null && project.currencyCode
                                 ? t('staff.time_tracking.myWork.projects.rate', '{rate}/h', {
-                                    rate: formatCurrency(project.hourlyRate, project.currencyCode) ?? '',
+                                    rate: formatCurrency(project.hourlyRate, project.currencyCode, locale, displayProfile) ?? '',
                                   })
                                 : null,
                             ]
@@ -761,7 +764,7 @@ export default function TimeTrackingMyWorkPage() {
                                       ? t('staff.time_tracking.myWork.projects.budgetHours', '{hours} h', {
                                           hours: String(project.budget.budgetValue),
                                         })
-                                      : formatCurrency(project.budget.budgetValue, project.currencyCode ?? undefined) ??
+                                      : formatCurrency(project.budget.budgetValue, project.currencyCode ?? undefined, locale, displayProfile) ??
                                         String(project.budget.budgetValue),
                                 })}
                               </p>

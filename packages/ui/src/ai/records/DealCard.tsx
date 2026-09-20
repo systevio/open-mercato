@@ -6,17 +6,19 @@ import { useT, useLocale } from '@open-mercato/shared/lib/i18n/context'
 import { KeyValueList, RecordCardShell, TagRow, statusToTagVariant } from './RecordCardShell'
 import type { DealRecordPayload } from './types'
 import { formatCurrency, formatDate } from '../../utils/format'
+import { useDisplayProfile } from '../../backend/markets/MarketProfileProvider'
 
 export interface DealCardProps extends DealRecordPayload {}
 
 export function DealCard(props: DealCardProps) {
   const t = useT()
   const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const status = props.status
     ? { label: props.status, variant: statusToTagVariant(props.status) }
     : null
   const stage = props.stage && props.stage !== props.status ? props.stage : null
-  const amount = formatCurrency(props.amount, props.currency, locale)
+  const amount = formatCurrency(props.amount, props.currency, locale, displayProfile)
   const closeDate = formatDate(props.closeDate, locale)
 
   const items = [

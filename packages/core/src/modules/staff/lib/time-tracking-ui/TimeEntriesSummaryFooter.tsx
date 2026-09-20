@@ -7,7 +7,8 @@ import { useRegisteredComponent } from '@open-mercato/ui/backend/injection/useRe
 import { extensionPoints } from '@open-mercato/core/modules/staff/extension-points'
 import { opaqueProp } from '../time-tracking/componentContracts'
 import { formatCurrency } from '@open-mercato/ui/utils/format'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { formatDuration } from '../time-tracking/duration'
 import type { TimeEntriesSummary } from './timeEntryListData'
 
@@ -28,6 +29,8 @@ export type TimeEntriesSummaryFooterProps = {
 
 function DefaultTimeEntriesSummaryFooter({ summary, totalCount, canSeeMoney }: TimeEntriesSummaryFooterProps) {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const money = canSeeMoney ? summary.money : []
 
   return (
@@ -59,13 +62,13 @@ function DefaultTimeEntriesSummaryFooter({ summary, totalCount, canSeeMoney }: T
               className="font-mono tabular-nums text-foreground"
               data-testid="entries-summary-money"
             >
-              {formatCurrency(subtotal.amount, subtotal.currencyCode) ?? String(subtotal.amount)}
+              {formatCurrency(subtotal.amount, subtotal.currencyCode, locale, displayProfile) ?? String(subtotal.amount)}
             </span>
           ))}
         </span>
       ) : money.length === 1 ? (
         <span className="font-mono tabular-nums text-foreground" data-testid="entries-summary-money">
-          {formatCurrency(money[0].amount, money[0].currencyCode) ?? String(money[0].amount)}
+          {formatCurrency(money[0].amount, money[0].currencyCode, locale, displayProfile) ?? String(money[0].amount)}
         </span>
       ) : null}
     </div>

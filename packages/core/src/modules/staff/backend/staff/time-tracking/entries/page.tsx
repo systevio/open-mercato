@@ -75,9 +75,10 @@ import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useOperationStore } from '@open-mercato/ui/backend/operations/store'
 import { formatCurrency } from '@open-mercato/ui/utils/format'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { deserializeOperationMetadata } from '@open-mercato/shared/lib/commands/operationMetadata'
 import { hasFeature } from '@open-mercato/shared/security/features'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { createLogger } from '@open-mercato/shared/lib/logger'
 import { TimeEntryDialog } from '../../../../lib/time-tracking-ui/TimeEntryDialog'
@@ -199,6 +200,8 @@ async function loadDirectory(
 
 export default function TimeTrackingEntriesPage() {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -959,7 +962,7 @@ export default function TimeTrackingEntriesPage() {
         const entry = row.original
         const rateOverrideLabel =
           canSeeMoney && entry.rateOverrideAmount !== null
-            ? formatCurrency(entry.rateOverrideAmount, entry.currencyCode) ?? String(entry.rateOverrideAmount)
+            ? formatCurrency(entry.rateOverrideAmount, entry.currencyCode, locale, displayProfile) ?? String(entry.rateOverrideAmount)
             : null
         return (
           <div className="flex min-w-0 flex-col gap-0.5">
@@ -1050,7 +1053,7 @@ export default function TimeTrackingEntriesPage() {
         meta: { priority: 4, maxWidth: '140px' },
         cell: ({ row }) => {
           const formatted =
-            row.original.cost === null ? null : formatCurrency(row.original.cost, row.original.currencyCode)
+            row.original.cost === null ? null : formatCurrency(row.original.cost, row.original.currencyCode, locale, displayProfile)
           return formatted ? (
             <span
               className="block text-right font-mono text-sm tabular-nums text-foreground"

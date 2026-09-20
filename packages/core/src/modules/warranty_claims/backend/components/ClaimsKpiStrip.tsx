@@ -5,6 +5,9 @@ import { ArrowLeftRight, BadgeCheck, CreditCard, History, Timer, type LucideIcon
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { Skeleton } from '@open-mercato/ui/primitives/skeleton'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
+import { formatNumber, type FormatMoneyOptions } from '@open-mercato/shared/lib/display/money'
+import { formatWarrantyAmount } from '../../lib/displayMoney'
 
 export type WarrantyClaimsRecoveredCurrency = {
   currencyCode: string | null
@@ -39,10 +42,6 @@ type KpiItemProps = {
   value: React.ReactNode
   detail?: React.ReactNode
   onClick?: () => void
-}
-
-function formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
-  return new Intl.NumberFormat(undefined, options).format(value)
 }
 
 function KpiItem({ icon: Icon, label, description, value, detail, onClick }: KpiItemProps) {
@@ -89,6 +88,11 @@ export function ClaimsKpiStrip({
   onOpenClaimsClick,
 }: ClaimsKpiStripProps) {
   const t = useT()
+  const displayProfile = useDisplayProfile()
+  const formatCount = React.useCallback(
+    (value: number, options?: FormatMoneyOptions) => formatNumber(value, displayProfile, options) ?? String(value),
+    [displayProfile],
+  )
 
   if (hasError) return null
 
@@ -110,14 +114,19 @@ export function ClaimsKpiStrip({
 
   const openClaims = Object.values(stats.openByStatus).reduce((sum, count) => sum + count, 0)
   const recoveredCurrencies = stats.recoveredLast30dByCurrency
-  const recovered = recoveredCurrencies[0] ?? null
-  const recoveredLabel = recovered
-    ? formatNumber(recovered.total, { maximumFractionDigits: 2 })
-    : null
-  const recoveredDescription = recoveredCurrencies.length > 1
-    ? t('warranty_claims.kpi.recovered.moreCurrencies', 'Last 30 days — largest of {count} currencies')
-      .replace('{count}', formatNumber(recoveredCurrencies.length))
-    : t('warranty_claims.kpi.last30d', 'Last 30 days')
+  const recoveredLabel = recoveredCurrencies.length > 0 ? (
+    <span className="block space-y-0.5">
+      {recoveredCurrencies.map((recovered) => (
+        <span key={recovered.currencyCode ?? 'unknown'} className="block text-base leading-5">
+          {formatWarrantyAmount(recovered.total, recovered.currencyCode, displayProfile)
+            ?? formatCount(recovered.total, { maximumFractionDigits: 2 })}
+          {!recovered.currencyCode
+            ? ` ${t('warranty_claims.kpi.recovered.unknownCurrency', 'currency unknown')}`
+            : null}
+        </span>
+      ))}
+    </span>
+  ) : null
   const slaCompliance = openClaims > 0
     ? Math.max(0, Math.round(((openClaims - stats.overdue) / openClaims) * 100))
     : 100
@@ -131,38 +140,38 @@ export function ClaimsKpiStrip({
         icon={ArrowLeftRight}
         label={t('warranty_claims.kpi.openClaims', 'Open claims')}
         description={t('warranty_claims.kpi.openClaims.description', 'Active queue')}
-        value={formatNumber(openClaims)}
-        detail={t('warranty_claims.kpi.openClaims.attention', '{count} need attention', { count: formatNumber(attentionCount ?? stats.overdue) })}
+        value={formatCount(openClaims)}
+        detail={t('warranty_claims.kpi.openClaims.attention', '{count} need attention', { count: formatCount(attentionCount ?? stats.overdue) })}
         onClick={onOpenClaimsClick}
       />
       <KpiItem
         icon={Timer}
         label={t('warranty_claims.kpi.slaCompliance', 'SLA compliance')}
         description={t('warranty_claims.kpi.slaCompliance.description', 'Within target window')}
-        value={`${formatNumber(slaCompliance)}%`}
-        detail={t('warranty_claims.kpi.slaCompliance.overdue', '{count} overdue', { count: formatNumber(stats.overdue) })}
+        value={`${formatCount(slaCompliance)}%`}
+        detail={t('warranty_claims.kpi.slaCompliance.overdue', '{count} overdue', { count: formatCount(stats.overdue) })}
         onClick={onOverdueClick}
       />
       <KpiItem
         icon={History}
         label={t('warranty_claims.kpi.avgResolutionDays', 'Avg resolution')}
         description={t('warranty_claims.kpi.last30d', 'Last 30 days')}
-        value={stats.avgResolutionDays === null ? t('warranty_claims.common.noValue') : t('warranty_claims.kpi.daysShort', '{count}d', { count: formatNumber(stats.avgResolutionDays, { maximumFractionDigits: 1 }) })}
-        detail={t('warranty_claims.kpi.avgResolution.resolved', '{count} claims resolved', { count: formatNumber(stats.resolvedLast30d) })}
+        value={stats.avgResolutionDays === null ? t('warranty_claims.common.noValue') : t('warranty_claims.kpi.daysShort', '{count}d', { count: formatCount(stats.avgResolutionDays, { maximumFractionDigits: 1 }) })}
+        detail={t('warranty_claims.kpi.avgResolution.resolved', '{count} claims resolved', { count: formatCount(stats.resolvedLast30d) })}
       />
       <KpiItem
         icon={BadgeCheck}
         label={t('warranty_claims.kpi.approvalRate', 'Approval rate')}
         description={t('warranty_claims.kpi.last30d', 'Last 30 days')}
-        value={stats.approvalRatePct === null ? t('warranty_claims.common.noValue') : `${formatNumber(stats.approvalRatePct)}%`}
-        detail={approvedCount === null ? undefined : t('warranty_claims.kpi.approvalRate.approved', '{count} claims approved', { count: formatNumber(approvedCount) })}
+        value={stats.approvalRatePct === null ? t('warranty_claims.common.noValue') : `${formatCount(stats.approvalRatePct)}%`}
+        detail={approvedCount === null ? undefined : t('warranty_claims.kpi.approvalRate.approved', '{count} claims approved', { count: formatCount(approvedCount) })}
       />
       <KpiItem
         icon={CreditCard}
         label={t('warranty_claims.kpi.recovered', 'Recovered')}
         description={t('warranty_claims.kpi.recovered.description', 'From vendors')}
         value={recoveredLabel ?? t('warranty_claims.common.noValue')}
-        detail={recovered ? `${recovered.currencyCode ?? ''} ${t('warranty_claims.kpi.last30d', 'Last 30 days')}`.trim() : recoveredDescription}
+        detail={t('warranty_claims.kpi.last30d', 'Last 30 days')}
       />
     </div>
   )

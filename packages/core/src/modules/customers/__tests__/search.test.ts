@@ -77,4 +77,23 @@ describe('customers search config', () => {
     const links = await companyConfig!.resolveLinks!(ctx)
     expect(links?.[0]?.href).toContain('/backend/customers/companies-v2/entity-2')
   })
+
+  test('deal index sources keep raw money while presentation remains a result concern', async () => {
+    const dealConfig = searchConfig.entities.find((entity) => entity.entityId === 'customers:customer_deal')
+
+    const result = await dealConfig!.buildSource!({
+      tenantId: 'tenant-1',
+      organizationId: 'org-1',
+      record: {
+        id: 'deal-1',
+        title: 'Launch',
+        value_amount: '1200.50',
+        value_currency: 'PLN',
+      },
+      customFields: {},
+    })
+
+    expect(result?.text).toContain('Value: 1200.50 PLN')
+    expect(result?.checksumSource).toMatchObject({ value: '1200.50 PLN' })
+  })
 })

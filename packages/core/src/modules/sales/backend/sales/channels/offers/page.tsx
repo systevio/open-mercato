@@ -22,6 +22,7 @@ import { mapOfferRow, renderOfferPriceSummary, type OfferRow } from '@open-merca
 import { useSalesChannelsEnabled } from '@open-mercato/core/modules/sales/components/useSalesChannelsEnabled'
 import { SalesChannelsDisabledNotice } from '@open-mercato/core/modules/sales/components/SalesChannelsDisabledNotice'
 import { createLogger } from '@open-mercato/shared/lib/logger'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 
 const logger = createLogger('sales')
 
@@ -38,6 +39,7 @@ const SAVE_CONTEXT_ID = 'sales-channel-offers-list'
 
 export default function SalesChannelOffersListPage() {
   const t = useT()
+  const displayProfile = useDisplayProfile()
   const { enabled: channelsEnabled, isLoading: channelsEnabledLoading } = useSalesChannelsEnabled()
   const router = useRouter()
   const { runMutation, retryLastMutation } = useGuardedMutation<{
@@ -197,7 +199,7 @@ export default function SalesChannelOffersListPage() {
       accessorKey: 'pricing',
       header: t('sales.channels.offers.table.pricing', 'Prices'),
       cell: ({ row }) => (
-        <div className="text-sm">{renderOfferPriceSummary(row.original, t as any)}</div>
+        <div className="text-sm">{renderOfferPriceSummary(row.original, t as any, displayProfile)}</div>
       ),
     },
     {
@@ -231,7 +233,7 @@ export default function SalesChannelOffersListPage() {
           ? <span className="text-xs text-muted-foreground">{new Date(row.original.updatedAt).toLocaleDateString()}</span>
           : <span className="text-xs text-muted-foreground">—</span>,
     },
-  ], [channelOptions, t])
+  ], [channelOptions, displayProfile, t])
 
   const filters = React.useMemo<FilterDef[]>(() => [
     {

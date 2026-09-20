@@ -59,6 +59,10 @@ import {
   resolveCrudCache,
 } from '@open-mercato/shared/lib/crud/cache'
 import { createLogger } from '@open-mercato/shared/lib/logger'
+import {
+  groupCurrencySubtotals,
+  type CurrencySubtotal,
+} from '../../../lib/currencySubtotals'
 
 const logger = createLogger('customers')
 
@@ -79,6 +83,7 @@ const COMPANY_DETAIL_CACHE_TTL_MS = 60_000
 // invalidateCrudCache does (camelCase split + lowercase) so the tag shapes match.
 const COMPANY_DETAIL_CACHE_RESOURCE_KINDS = [
   'customers.company',
+  'customers.deal',
   'customers.address',
   'customers.tagAssignment',
   'customers.labelAssignment',
@@ -221,24 +226,18 @@ function readCustomField(record: Record<string, unknown>, key: string): unknown 
 
 type CompanyDetailKpiSummary = {
   activeDealsCount: number
+  /** @deprecated Use activeDealsByCurrency. This scalar can combine unlike denominations. */
   activeDealsValue: number | null
+  /** @deprecated Use the currencyCode on each grouped subtotal. */
   dealCurrency: string | null
+  activeDealsByCurrency: CurrencySubtotal[]
   activityCount: number
   activityTrend: { value: number; direction: 'up' | 'down' | 'unchanged' } | null
+  /** @deprecated Use wonDealsByCurrency. This scalar can combine unlike denominations. */
   ltvValue: number | null
+  wonDealsByCurrency: CurrencySubtotal[]
   completedDealsCount: number
   clientTenureYears: number | null
-}
-
-function parseDealAmount(value: string | number | null | undefined): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-  if (typeof value === 'string') {
-    const trimmed = value.trim()
-    if (!trimmed.length) return null
-    const parsed = Number(trimmed)
-    return Number.isNaN(parsed) ? null : parsed
-  }
-  return null
 }
 
 function computeActivityTrend(
@@ -777,7 +776,8 @@ export async function GET(_req: Request, ctx: { params?: { id?: string } }) {
           !!deal &&
           typeof deal !== 'string' &&
           deal.tenantId === company.tenantId &&
-          deal.organizationId === company.organizationId,
+          deal.organizationId === company.organizationId &&
+          deal.deletedAt === null,
       )
   }
 
@@ -800,7 +800,8 @@ export async function GET(_req: Request, ctx: { params?: { id?: string } }) {
             !!deal &&
             typeof deal !== 'string' &&
             deal.tenantId === company.tenantId &&
-            deal.organizationId === company.organizationId,
+            deal.organizationId === company.organizationId &&
+            deal.deletedAt === null,
         )
 
   const peopleUnionScope = {
@@ -935,9 +936,15 @@ export async function GET(_req: Request, ctx: { params?: { id?: string } }) {
   )
   const activeDeals = dealLinksForMetrics.filter((deal) => isOpenDealStatus(deal.status))
   const wonDeals = dealLinksForMetrics.filter((deal) => isWonDealStatus(deal.status))
-  const activeDealsValue = activeDeals.reduce((sum, deal) => sum + (parseDealAmount(deal.valueAmount) ?? 0), 0)
-  const ltvValue = wonDeals.length
-    ? wonDeals.reduce((sum, deal) => sum + (parseDealAmount(deal.valueAmount) ?? 0), 0)
+  const activeDealsByCurrency = groupCurrencySubtotals(activeDeals)
+  const wonDealsByCurrency = groupCurrencySubtotals(wonDeals)
+  const activeScalarGroup = activeDealsByCurrency.length === 1 ? activeDealsByCurrency[0] : null
+  const wonScalarGroup = wonDealsByCurrency.length === 1 ? wonDealsByCurrency[0] : null
+  const activeDealsValue = activeScalarGroup && activeScalarGroup.invalidAmountCount < activeScalarGroup.count
+    ? activeScalarGroup.amount
+    : null
+  const ltvValue = wonScalarGroup && wonScalarGroup.invalidAmountCount < wonScalarGroup.count
+    ? wonScalarGroup.amount
     : null
   const earliestInteractionTime = kpiInteractionRows.reduce<number | null>((earliest, interaction) => {
     const candidate = interaction.occurredAt ?? interaction.scheduledAt ?? interaction.createdAt
@@ -948,14 +955,13 @@ export async function GET(_req: Request, ctx: { params?: { id?: string } }) {
   }, null)
   const companyKpis: CompanyDetailKpiSummary = {
     activeDealsCount: activeDeals.length,
-    activeDealsValue: activeDeals.length ? activeDealsValue : null,
-    dealCurrency:
-      activeDeals[0]?.valueCurrency ??
-      dealLinksForMetrics[0]?.valueCurrency ??
-      null,
+    activeDealsValue,
+    dealCurrency: activeScalarGroup?.currencyCode ?? null,
+    activeDealsByCurrency,
     activityCount,
     activityTrend,
     ltvValue,
+    wonDealsByCurrency,
     completedDealsCount: wonDeals.length,
     clientTenureYears:
       earliestInteractionTime === null
@@ -1378,6 +1384,31 @@ const companyDetailResponseSchema = z.object({
       linkedAt: z.string().nullable().optional(),
     }),
   ),
+  kpis: z.object({
+    activeDealsCount: z.number().int().nonnegative(),
+    activeDealsValue: z.number().nullable(),
+    dealCurrency: z.string().nullable(),
+    activeDealsByCurrency: z.array(z.object({
+      currencyCode: z.string().nullable(),
+      amount: z.number(),
+      count: z.number().int().nonnegative(),
+      invalidAmountCount: z.number().int().nonnegative(),
+    })),
+    activityCount: z.number().int().nonnegative(),
+    activityTrend: z.object({
+      value: z.number(),
+      direction: z.enum(['up', 'down', 'unchanged']),
+    }).nullable(),
+    ltvValue: z.number().nullable(),
+    wonDealsByCurrency: z.array(z.object({
+      currencyCode: z.string().nullable(),
+      amount: z.number(),
+      count: z.number().int().nonnegative(),
+      invalidAmountCount: z.number().int().nonnegative(),
+    })),
+    completedDealsCount: z.number().int().nonnegative(),
+    clientTenureYears: z.number().int().nonnegative().nullable(),
+  }),
   viewer: z.object({
     userId: z.string().uuid().nullable(),
     name: z.string().nullable(),

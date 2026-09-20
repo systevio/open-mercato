@@ -5,6 +5,8 @@ import { screen, within } from '@testing-library/react'
 import { renderWithProviders } from '@open-mercato/shared/lib/testing/renderWithProviders'
 import { CompanyKpiBar } from '../CompanyKpiBar'
 import type { CompanyOverview, DealSummary } from '../../formConfig'
+import { MarketProfileProvider } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
+import { getMarketTemplate } from '@open-mercato/shared/lib/display/templates'
 
 // Regression for issue #4667: a deal closed through useDealClosure persists
 // `status: 'win'`, but this bar tested for `won` / `lost` / `closed`. Every closed deal
@@ -97,7 +99,7 @@ describe('CompanyKpiBar — deal status vocabulary (#4667)', () => {
     renderBar([CLOSED_WON_DEAL, OPEN_DEAL])
 
     expect(within(tile(ACTIVE_DEALS)).getByText('PLN 1,000')).toBeInTheDocument()
-    expect(within(tile(ACTIVE_DEALS)).getByText('1 pipeline')).toBeInTheDocument()
+    expect(within(tile(ACTIVE_DEALS)).getByText('1 deal')).toBeInTheDocument()
     expect(within(tile(LTV)).getByText('PLN 4,000')).toBeInTheDocument()
   })
 
@@ -112,7 +114,7 @@ describe('CompanyKpiBar — deal status vocabulary (#4667)', () => {
     renderBar([OPEN_DEAL, TENANT_STAGE_DEAL])
 
     expect(within(tile(ACTIVE_DEALS)).getByText('PLN 1,700')).toBeInTheDocument()
-    expect(within(tile(ACTIVE_DEALS)).getByText('2 pipelines')).toBeInTheDocument()
+    expect(within(tile(ACTIVE_DEALS)).getByText('2 deals')).toBeInTheDocument()
     expect(within(tile(LTV)).getByText('--')).toBeInTheDocument()
   })
 
@@ -128,5 +130,42 @@ describe('CompanyKpiBar — deal status vocabulary (#4667)', () => {
 
     expect(within(tile(ACTIVE_DEALS)).getByText(/^1000\s+zł$/)).toBeInTheDocument()
     expect(within(tile(LTV)).getByText(/^4000\s+zł$/)).toBeInTheDocument()
+  })
+
+  it('keeps mixed and unknown denominations separate under the US profile', () => {
+    const overview = buildOverview([])
+    overview.kpis = {
+      activeDealsCount: 4,
+      activeDealsValue: null,
+      dealCurrency: null,
+      activeDealsByCurrency: [
+        { currencyCode: 'PLN', amount: 1200, count: 1, invalidAmountCount: 0 },
+        { currencyCode: 'USD', amount: 300, count: 1, invalidAmountCount: 0 },
+        { currencyCode: null, amount: 50, count: 1, invalidAmountCount: 0 },
+        { currencyCode: 'EUR', amount: 0, count: 1, invalidAmountCount: 1 },
+      ],
+      activityCount: 0,
+      activityTrend: null,
+      ltvValue: null,
+      wonDealsByCurrency: [],
+      completedDealsCount: 0,
+      clientTenureYears: null,
+    }
+    const usProfile = getMarketTemplate('US')
+    if (!usProfile) throw new Error('[internal] US market template is unavailable')
+
+    renderWithProviders(
+      <MarketProfileProvider profile={usProfile}>
+        <CompanyKpiBar data={overview} />
+      </MarketProfileProvider>,
+      { locale: EN },
+    )
+
+    const activeTile = within(tile(ACTIVE_DEALS))
+    expect(activeTile.getByText(/PLN/)).toHaveTextContent('1,200')
+    expect(activeTile.getByText(/\$300/)).toBeInTheDocument()
+    expect(activeTile.getByText(/Currency unavailable/)).toHaveTextContent('50')
+    expect(activeTile.getByText(/EUR/)).toHaveTextContent('Amount unavailable')
+    expect(activeTile.getByText('4 deals')).toBeInTheDocument()
   })
 })

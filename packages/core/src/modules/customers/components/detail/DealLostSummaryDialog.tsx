@@ -3,7 +3,9 @@
 import * as React from 'react'
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import { CircleOff, Clock3, FileWarning, Radar } from 'lucide-react'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
+import { formatCurrency } from './utils'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { Dialog, DialogContent, DialogTitle } from '@open-mercato/ui/primitives/dialog'
 
@@ -27,16 +29,6 @@ type DealLostSummaryDialogProps = {
   stats: DealStatsPayload | null
   onBackToPipeline?: () => void
   onScheduleFollowUp?: () => void
-}
-
-function formatCurrency(value: number | null, currency: string | null): string {
-  if (value === null || !Number.isFinite(value)) return '—'
-  if (!currency) return value.toLocaleString()
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(value)
-  } catch {
-    return `${value.toLocaleString()} ${currency}`
-  }
 }
 
 function StatCard({
@@ -69,6 +61,8 @@ export function DealLostSummaryDialog({
   onScheduleFollowUp,
 }: DealLostSummaryDialogProps) {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onClose() }}>
@@ -98,7 +92,9 @@ export function DealLostSummaryDialog({
                 {dealTitle}
               </p>
               <p className="mt-2 text-2xl font-bold text-muted-foreground">
-                {stats ? formatCurrency(stats.dealValue, stats.dealCurrency) : '—'}
+                {stats && stats.dealValue !== null
+                  ? formatCurrency(stats.dealValue, stats.dealCurrency, locale, displayProfile)
+                  : '—'}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {t('customers.deals.detail.lost.popupSummary', 'Lost · reason: {{reason}}', {

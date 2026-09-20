@@ -5,10 +5,12 @@ import { Loader2, Pencil, X } from 'lucide-react'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { Input } from '@open-mercato/ui/primitives/input'
 import { DictionaryEntrySelect } from '@open-mercato/core/modules/dictionaries/components/DictionaryEntrySelect'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { cn } from '@open-mercato/shared/lib/utils'
 import { useCurrencyDictionary } from './hooks/useCurrencyDictionary'
 import type { InlineFieldProps } from './InlineEditors'
+import { formatCurrency } from './utils'
 
 export type AnnualRevenueFieldProps = {
   label: string
@@ -28,6 +30,8 @@ export function AnnualRevenueField({
   onSave,
 }: AnnualRevenueFieldProps) {
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const {
     data: currencyDictionary,
     error: currencyDictionaryErrorRaw,
@@ -90,25 +94,17 @@ export function AnnualRevenueField({
     const numeric = Number(value.replace(/,/g, ''))
     let formatted = value
     if (!Number.isNaN(numeric)) {
-      try {
-        formatted = new Intl.NumberFormat(undefined, {
-          style: currency ? 'currency' : 'decimal',
-          currency: currency ?? undefined,
-          maximumFractionDigits: 2,
-        }).format(numeric)
-      } catch {
-        formatted = currency ? `${currency} ${numeric}` : `${numeric}`
-      }
+      formatted = formatCurrency(numeric, currency, locale, displayProfile)
     }
     return (
       <div className="flex flex-col gap-1">
         <span className="text-sm font-medium text-foreground">{formatted}</span>
-        {currencyLabel ? (
-          <span className="text-xs uppercase tracking-wide text-muted-foreground">{currencyLabel}</span>
-        ) : null}
+        <span className="text-xs uppercase tracking-wide text-muted-foreground">
+          {currencyLabel ?? t('customers.companies.dashboard.kpi.currencyUnavailable', 'Currency unavailable')}
+        </span>
       </div>
     )
-  }, [amount, currency, currencyLabel, emptyLabel])
+  }, [amount, currency, currencyLabel, displayProfile, emptyLabel, locale, t])
 
   const currencyLabels = React.useMemo(
     () => ({

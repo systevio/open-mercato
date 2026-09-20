@@ -18,6 +18,7 @@ import { useGuardedMutation } from '@open-mercato/ui/backend/injection/useGuarde
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { mapOfferRow, renderOfferPriceSummary, type OfferRow } from './offerTableUtils'
 import { createLogger } from '@open-mercato/shared/lib/logger'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 
 const logger = createLogger('sales')
 
@@ -34,6 +35,7 @@ const SAVE_CONTEXT_ID = 'sales-channel-offers-panel'
 
 export function SalesChannelOffersPanel({ channelId, channelName }: { channelId: string; channelName?: string }) {
   const t = useT()
+  const displayProfile = useDisplayProfile()
   const router = useRouter()
   const { runMutation, retryLastMutation } = useGuardedMutation<{
     formId: string
@@ -92,7 +94,7 @@ export function SalesChannelOffersPanel({ channelId, channelName }: { channelId:
       accessorKey: 'pricing',
       header: t('sales.channels.offers.table.pricing', 'Prices'),
       cell: ({ row }) => (
-        <div className="text-sm">{renderOfferPriceSummary(row.original, t as any)}</div>
+        <div className="text-sm">{renderOfferPriceSummary(row.original, t as any, displayProfile)}</div>
       ),
     },
     {
@@ -108,7 +110,7 @@ export function SalesChannelOffersPanel({ channelId, channelName }: { channelId:
           ? <span className="text-xs text-muted-foreground">{new Date(row.original.updatedAt).toLocaleDateString()}</span>
           : <span className="text-xs text-muted-foreground">—</span>,
     },
-  ], [t])
+  ], [displayProfile, t])
 
   const loadOffers = React.useCallback(async () => {
     if (!channelId) return

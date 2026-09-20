@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@open-mercato/ui/primi
 import { Badge } from '@open-mercato/ui/primitives/badge'
 import { ErrorMessage } from '@open-mercato/ui/backend/detail'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { formatMoney } from '@open-mercato/shared/lib/display/money'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 import { Package, CheckCircle2 } from 'lucide-react'
 import type { Address, PackageDimension, ShippingRate, LabelFormat, ContactInfo } from '../types'
 
@@ -39,6 +41,7 @@ export const ConfirmStep = (props: ConfirmStepProps) => {
     isSubmitting, onRateSelect, onBack, onSubmit,
   } = props
   const t = useT()
+  const displayProfile = useDisplayProfile()
 
   return (
     <section className="space-y-6">
@@ -91,7 +94,10 @@ export const ConfirmStep = (props: ConfirmStepProps) => {
                         </span>
                       ) : null}
                       <Badge variant="secondary">
-                        {rate.amount.toFixed(2)} {rate.currencyCode}
+                        {formatMoney(rate.amount, rate.currencyCode, displayProfile, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                       </Badge>
                       {isSelected ? <CheckCircle2 className="h-4 w-4 text-primary" /> : null}
                     </div>

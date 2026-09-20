@@ -14,7 +14,7 @@ import TimeTrackingMyWorkPage from '../page'
 const mockTranslate = (key: string, fallback?: string | Record<string, string | number>): string =>
   typeof fallback === 'string' ? fallback : key
 
-jest.mock('@open-mercato/shared/lib/i18n/context', () => ({ useT: () => mockTranslate }))
+jest.mock('@open-mercato/shared/lib/i18n/context', () => ({ useLocale: () => 'en-US', useT: () => mockTranslate }))
 
 jest.mock('@open-mercato/shared/lib/frontend/useOrganizationScope', () => ({
   useOrganizationScopeVersion: () => 1,

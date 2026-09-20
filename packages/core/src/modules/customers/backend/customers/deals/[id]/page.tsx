@@ -13,9 +13,10 @@ import { InjectionSpot } from '@open-mercato/ui/backend/injection/InjectionSpot'
 import { buildRecordInjectionContext, useSetCurrentRecordInjectionContext } from '@open-mercato/ui/backend/injection/recordContext'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { CollapsibleZoneLayout, type ZoneSectionDescriptor } from '@open-mercato/ui/backend/crud/CollapsibleZoneLayout'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import { createTranslatorWithFallback } from '@open-mercato/shared/lib/i18n/translate'
 import { E } from '#generated/entities.ids.generated'
+import { useDisplayProfile } from '@open-mercato/ui/backend/markets/MarketProfileProvider'
 
 import { ActivitiesSection } from '../../../../components/detail/ActivitiesSection'
 import { ChangelogTab } from '../../../../components/detail/ChangelogTab'
@@ -52,6 +53,8 @@ import { useScheduleDialog } from './hooks/useScheduleDialog'
 export default function DealDetailPage({ params }: { params?: { id?: string } }) {
   const id = params?.id ?? ''
   const t = useT()
+  const locale = useLocale()
+  const displayProfile = useDisplayProfile()
   const router = useRouter()
   const searchParams = useSearchParams()
   const pathname = usePathname()
@@ -381,7 +384,7 @@ export default function DealDetailPage({ params }: { params?: { id?: string } })
     )
   }
 
-  const amountLabel = formatCurrency(data.deal.valueAmount, data.deal.valueCurrency)
+  const amountLabel = formatCurrency(data.deal.valueAmount, data.deal.valueCurrency, displayProfile, locale)
   const dealName = data.deal.title || t('customers.deals.detail.untitled', 'Untitled deal')
 
   const zone1Content = (

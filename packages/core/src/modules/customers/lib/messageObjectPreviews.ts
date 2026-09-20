@@ -3,6 +3,9 @@ import { findOneWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import { resolveTranslations } from '@open-mercato/shared/lib/i18n/server'
 import type { ObjectPreviewData } from '@open-mercato/shared/modules/messages/types'
 import type { EntityManager } from '@mikro-orm/postgresql'
+import { formatMoney, formatNumber } from '@open-mercato/shared/lib/display/money'
+import type { DisplayProfile } from '@open-mercato/shared/lib/display/profile'
+import { resolveDisplayProfileForScope } from '@open-mercato/core/modules/markets/lib/request-profile'
 import { CustomerCompanyProfile, CustomerDeal, CustomerEntity, CustomerPersonProfile } from '../data/entities'
 
 type PreviewContext = {
@@ -10,16 +13,15 @@ type PreviewContext = {
   organizationId?: string | null
 }
 
-function formatCurrency(amount: string | null | undefined, currency: string | null | undefined): string | null {
+function formatCurrency(
+  amount: string | null | undefined,
+  currency: string | null | undefined,
+  profile: DisplayProfile | null,
+): string | null {
   if (!amount) return null
   const value = Number(amount)
   if (!Number.isFinite(value)) return currency ? `${amount} ${currency}` : amount
-  if (!currency) return value.toLocaleString()
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(value)
-  } catch {
-    return `${value.toLocaleString()} ${currency}`
-  }
+  return currency ? formatMoney(value, currency, profile) : formatNumber(value, profile)
 }
 
 function statusColor(status: string | null | undefined): string | undefined {
@@ -31,9 +33,12 @@ function statusColor(status: string | null | undefined): string | undefined {
   return 'blue'
 }
 
-async function resolveEm() {
-  const { resolve } = await createRequestContainer()
-  return resolve('em') as EntityManager
+async function resolvePreviewContext(ctx: PreviewContext) {
+  const container = await createRequestContainer()
+  return {
+    em: container.resolve('em') as EntityManager,
+    displayProfile: await resolveDisplayProfileForScope(container, ctx),
+  }
 }
 
 export async function loadCustomerPersonPreview(entityId: string, ctx: PreviewContext): Promise<ObjectPreviewData> {
@@ -44,7 +49,7 @@ export async function loadCustomerPersonPreview(entityId: string, ctx: PreviewCo
     return { title: defaultTitle, subtitle: entityId }
   }
 
-  const em = await resolveEm()
+  const { em } = await resolvePreviewContext(ctx)
   const entity = await findOneWithDecryption(
     em,
     CustomerEntity,
@@ -100,7 +105,7 @@ export async function loadCustomerCompanyPreview(entityId: string, ctx: PreviewC
     return { title: defaultTitle, subtitle: entityId }
   }
 
-  const em = await resolveEm()
+  const { em } = await resolvePreviewContext(ctx)
   const entity = await findOneWithDecryption(
     em,
     CustomerEntity,
@@ -156,7 +161,7 @@ export async function loadCustomerDealPreview(entityId: string, ctx: PreviewCont
     return { title: defaultTitle, subtitle: entityId }
   }
 
-  const em = await resolveEm()
+  const { em, displayProfile } = await resolvePreviewContext(ctx)
   const deal = await findOneWithDecryption(
     em,
     CustomerDeal,
@@ -174,7 +179,7 @@ export async function loadCustomerDealPreview(entityId: string, ctx: PreviewCont
     return { title: defaultTitle, subtitle: entityId, status: t('customers.messageObjects.notFound'), statusColor: 'gray' }
   }
 
-  const amount = formatCurrency(deal.valueAmount, deal.valueCurrency)
+  const amount = formatCurrency(deal.valueAmount, deal.valueCurrency, displayProfile)
   const probability = typeof deal.probability === 'number' ? `${deal.probability}%` : null
   const subtitle = [amount, probability].filter((part): part is string => Boolean(part && part.length > 0)).join(' • ')
   const metadata: Record<string, string> = {}
@@ -191,4 +196,3 @@ export async function loadCustomerDealPreview(entityId: string, ctx: PreviewCont
     metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
   }
 }
-
