@@ -267,6 +267,121 @@ describe('tax stage', () => {
     expect(taxInfoOf(result.metadata).failure?.code).toBe('unsupported')
   })
 
+  it('keeps the messages of a declining provider, and names the reason on the failure', async () => {
+    // Regression: the unsupported branch dropped the normalized result to fall
+    // back, and the provider's messages went with it — the merchant was told
+    // the document was declined but never which field to fix.
+    registerSpyProvider('declines-with-reason', ({ request }) => ({
+      status: 'unsupported',
+      lines: request.lines.map((line) => ({
+        lineId: line.id,
+        taxAmount: 0,
+        taxableAmount: 0,
+        exemptAmount: 0,
+        rate: null,
+        details: [],
+      })),
+      totals: { taxTotal: 0, taxableTotal: 0, exemptTotal: 0 },
+      messages: [
+        { level: 'info' as const, code: 'ship_from_missing', text: 'No ship-from address is configured for this channel.' },
+      ],
+    }))
+    const result = await calculate({
+      tax: makeTaxContext({
+        selection: {
+          providerKey: 'declines-with-reason',
+          settings: {},
+          integrationId: null,
+          integrationEnabled: true,
+        },
+      }),
+    })
+
+    const info = taxInfoOf(result.metadata)
+    expect(info.messages).toEqual([
+      { level: 'info', code: 'ship_from_missing', text: 'No ship-from address is configured for this channel.' },
+      {
+        level: 'info',
+        code: 'unsupported',
+        text: 'The tax provider declined the document: No ship-from address is configured for this channel.',
+      },
+    ])
+    expect(info.failure?.code).toBe('unsupported')
+    expect(info.failure?.message).toContain('No ship-from address is configured for this channel.')
+  })
+
+  it('caps a long decline reason so the failure record stays a label', async () => {
+    const reason = `${'x'.repeat(400)}`
+    registerSpyProvider('declines-at-length', () => ({
+      status: 'unsupported',
+      lines: [],
+      totals: { taxTotal: 0, taxableTotal: 0, exemptTotal: 0 },
+      messages: [{ level: 'warning' as const, code: 'country_not_enabled', text: reason }],
+    }))
+    const result = await calculate({
+      tax: makeTaxContext({
+        selection: {
+          providerKey: 'declines-at-length',
+          settings: {},
+          integrationId: null,
+          integrationEnabled: true,
+        },
+      }),
+    })
+
+    const info = taxInfoOf(result.metadata)
+    expect(info.failure?.message).toHaveLength(200)
+    expect(info.failure?.message.endsWith('…')).toBe(true)
+    // The provider's own message is stored whole; only the failure label is cut.
+    expect(info.messages[0]).toEqual({ level: 'warning', code: 'country_not_enabled', text: reason })
+  })
+
+  it('keeps the plain decline wording when the provider gives no reason', async () => {
+    registerSpyProvider('declines-silently', () => null)
+    const result = await calculate({
+      tax: makeTaxContext({
+        selection: {
+          providerKey: 'declines-silently',
+          settings: {},
+          integrationId: null,
+          integrationEnabled: true,
+        },
+      }),
+    })
+
+    const info = taxInfoOf(result.metadata)
+    expect(info.failure?.message).toBe('The tax provider declined the document.')
+    expect(info.messages).toHaveLength(1)
+  })
+
+  it('stores the messages of a calculated result exactly once', async () => {
+    registerSpyProvider('chatty', ({ request }) => ({
+      status: 'calculated',
+      lines: request.lines.map((line) => ({
+        lineId: line.id,
+        taxAmount: 0,
+        taxableAmount: line.amountNet,
+        exemptAmount: 0,
+        rate: 0,
+        details: [],
+      })),
+      totals: { taxTotal: 0, taxableTotal: 0, exemptTotal: 0 },
+      messages: [{ level: 'info' as const, code: 'nexus_assumed', text: 'Nexus was assumed from the channel.' }],
+    }))
+    const result = await calculate({
+      tax: makeTaxContext({
+        selection: { providerKey: 'chatty', settings: {}, integrationId: null, integrationEnabled: true },
+      }),
+    })
+
+    const info = taxInfoOf(result.metadata)
+    expect(info.status).toBe('calculated')
+    expect(info.failure).toBeNull()
+    expect(info.messages).toEqual([
+      { level: 'info', code: 'nexus_assumed', text: 'Nexus was assumed from the channel.' },
+    ])
+  })
+
   it('falls back to the default provider for an unregistered key', async () => {
     const result = await calculate({
       tax: makeTaxContext({

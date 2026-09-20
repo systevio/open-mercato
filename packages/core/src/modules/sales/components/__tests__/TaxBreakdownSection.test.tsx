@@ -131,6 +131,71 @@ describe('TaxBreakdownSection', () => {
     ).toBeInTheDocument()
   })
 
+  it("shows the declining provider's own reason, which no locale file can hold", () => {
+    // The translated failure line is keyed on the code, so it can only say
+    // "declined". Without this the merchant never learns which field to fix.
+    render(
+      <TaxBreakdownSection
+        taxStatus="fallback"
+        taxInfo={{
+          ...calculatedInfo,
+          status: 'fallback',
+          messages: [
+            {
+              level: 'info',
+              code: 'ship_from_missing',
+              text: 'No ship-from address is configured for this channel.',
+            },
+            {
+              level: 'info',
+              code: 'unsupported',
+              text: 'The tax provider declined the document: No ship-from address is configured for this channel.',
+            },
+          ],
+          failure: {
+            code: 'unsupported',
+            message: 'The tax provider declined the document.',
+            at: '2026-09-19T10:00:00.000Z',
+            providerKey: 'avalara',
+          },
+        }}
+        currency="USD"
+      />
+    )
+    expect(
+      screen.getByText('No ship-from address is configured for this channel.')
+    ).toBeInTheDocument()
+    // The core entry repeats the failure line, so it is not shown twice.
+    expect(
+      screen.queryByText(
+        'The tax provider declined the document: No ship-from address is configured for this channel.'
+      )
+    ).not.toBeInTheDocument()
+  })
+
+  it('adds no message line when the provider gave no reason', () => {
+    render(
+      <TaxBreakdownSection
+        taxStatus="fallback"
+        taxInfo={{
+          ...calculatedInfo,
+          status: 'fallback',
+          messages: [
+            { level: 'info', code: 'unsupported', text: 'The tax provider declined the document.' },
+          ],
+          failure: {
+            code: 'unsupported',
+            message: 'The tax provider declined the document.',
+            at: '2026-09-19T10:00:00.000Z',
+            providerKey: 'avalara',
+          },
+        }}
+        currency="USD"
+      />
+    )
+    expect(screen.getAllByText('The tax provider declined the document.')).toHaveLength(1)
+  })
+
   it('disables the retry while one is in flight', () => {
     render(
       <TaxBreakdownSection
