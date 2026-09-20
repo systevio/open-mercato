@@ -131,6 +131,106 @@ describe('TaxBreakdownSection', () => {
     ).toBeInTheDocument()
   })
 
+  it("shows the declining provider's own reason, which no locale file can hold", () => {
+    // The translated failure line is keyed on the code, so it can only say
+    // "declined". Without this the merchant never learns which field to fix.
+    render(
+      <TaxBreakdownSection
+        taxStatus="fallback"
+        taxInfo={{
+          ...calculatedInfo,
+          status: 'fallback',
+          messages: [
+            {
+              level: 'info',
+              code: 'ship_from_missing',
+              text: 'No ship-from address is configured for this channel.',
+            },
+            {
+              level: 'info',
+              code: 'unsupported',
+              text: 'The tax provider declined the document: No ship-from address is configured for this channel.',
+            },
+          ],
+          failure: {
+            code: 'unsupported',
+            // What `runTaxStage` actually writes once a reason is present.
+            message:
+              'The tax provider declined the document: No ship-from address is configured for this channel.',
+            at: '2026-09-19T10:00:00.000Z',
+            providerKey: 'avalara',
+          },
+        }}
+        currency="USD"
+      />
+    )
+    expect(
+      screen.getByText('No ship-from address is configured for this channel.')
+    ).toBeInTheDocument()
+    // The core entry only repeats the failure line, so it is not echoed under
+    // it. (The stubbed `useT` returns the fallback, so that line is the
+    // composed text here; in the app the locale file supplies it.)
+    expect(
+      screen.getAllByText(
+        'The tax provider declined the document: No ship-from address is configured for this channel.'
+      )
+    ).toHaveLength(1)
+  })
+
+  it('still shows a reason the provider labelled with the failure code itself', () => {
+    render(
+      <TaxBreakdownSection
+        taxStatus="fallback"
+        taxInfo={{
+          ...calculatedInfo,
+          status: 'fallback',
+          messages: [
+            { level: 'info', code: 'unsupported', text: 'Origin country is not enabled on this account.' },
+            {
+              level: 'info',
+              code: 'unsupported',
+              text: 'The tax provider declined the document: Origin country is not enabled on this account.',
+            },
+          ],
+          failure: {
+            code: 'unsupported',
+            message:
+              'The tax provider declined the document: Origin country is not enabled on this account.',
+            at: '2026-09-19T10:00:00.000Z',
+            providerKey: 'avalara',
+          },
+        }}
+        currency="USD"
+      />
+    )
+    expect(
+      screen.getByText('Origin country is not enabled on this account.')
+    ).toBeInTheDocument()
+  })
+
+  it('adds no message line when the provider gave no reason', () => {
+    render(
+      <TaxBreakdownSection
+        taxStatus="fallback"
+        taxInfo={{
+          ...calculatedInfo,
+          status: 'fallback',
+          messages: [
+            { level: 'info', code: 'unsupported', text: 'The tax provider declined the document.' },
+          ],
+          failure: {
+            code: 'unsupported',
+            message: 'The tax provider declined the document.',
+            at: '2026-09-19T10:00:00.000Z',
+            providerKey: 'avalara',
+          },
+        }}
+        currency="USD"
+      />
+    )
+    expect(screen.getAllByText('The tax provider declined the document.')).toHaveLength(1)
+  })
+
   it('disables the retry while one is in flight', () => {
     render(
       <TaxBreakdownSection
