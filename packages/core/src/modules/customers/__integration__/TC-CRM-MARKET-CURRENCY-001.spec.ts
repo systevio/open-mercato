@@ -6,7 +6,12 @@ import { getAuthToken } from '@open-mercato/core/helpers/integration/api'
 import {
   apiRequestWithSelectedOrg,
   createOrganizationFixture,
+  createRoleFixture,
+  createUserFixture,
   deleteOrganizationIfExists,
+  deleteRoleIfExists,
+  deleteUserIfExists,
+  setUserAclVisibility,
 } from '@open-mercato/core/helpers/integration/authFixtures'
 import { expectId, getTokenContext, readJsonSafe } from '@open-mercato/core/helpers/integration/generalFixtures'
 
@@ -59,6 +64,8 @@ test.describe('TC-CRM-MARKET-CURRENCY-001: company money display follows market 
     const stamp = `${Date.now()}-${randomInt(1_000_000)}`
     let organizationId: string | null = null
     let companyId: string | null = null
+    let restrictedRoleId: string | null = null
+    let restrictedUserId: string | null = null
     const dealIds: string[] = []
 
     try {
@@ -112,11 +119,31 @@ test.describe('TC-CRM-MARKET-CURRENCY-001: company money display follows market 
         { currencyCode: null, amount: 50, count: 1, invalidAmountCount: 0 },
       ])
 
+      const restrictedEmail = `qa-market-currency-${stamp}@example.com`
+      const restrictedPassword = 'StrongSecret123!'
+      restrictedRoleId = await createRoleFixture(request, token, {
+        name: `QA market currency viewer ${stamp}`,
+        tenantId,
+      })
+      restrictedUserId = await createUserFixture(request, token, {
+        email: restrictedEmail,
+        password: restrictedPassword,
+        organizationId: homeOrganizationId,
+        roles: [restrictedRoleId],
+        name: 'QA market currency viewer',
+      })
+      await setUserAclVisibility(request, token, {
+        userId: restrictedUserId,
+        organizations: [homeOrganizationId],
+        features: ['customers.companies.view'],
+      })
+      const restrictedToken = await getAuthToken(request, restrictedEmail, restrictedPassword)
+
       const crossOrganizationResponse = await apiRequestWithSelectedOrg(
         request,
         'GET',
         `/api/customers/companies/${companyId}`,
-        { token, selectedOrgId: homeOrganizationId },
+        { token: restrictedToken, selectedOrgId: homeOrganizationId },
       )
       expect(crossOrganizationResponse.status(), 'the isolated company must not leak into the home organization').toBe(404)
 
@@ -146,6 +173,8 @@ test.describe('TC-CRM-MARKET-CURRENCY-001: company money display follows market 
           data: {},
         }).catch(() => undefined)
       }
+      await deleteUserIfExists(request, token, restrictedUserId)
+      await deleteRoleIfExists(request, token, restrictedRoleId)
       await deleteOrganizationIfExists(request, token, organizationId)
     }
   })
