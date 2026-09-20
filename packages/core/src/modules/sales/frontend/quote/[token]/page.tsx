@@ -14,14 +14,25 @@ const logger = createLogger('sales')
 type QuoteDisplay = {
   singlePricePlusTax: boolean
   validUntil: string | null
+  subtotalLabel?: string
   subtotal: string | null
+  discountLabel?: string
   discountTotal: string | null
   taxTotal: string | null
+  totalLabel?: string
   grandTotal: string | null
   taxLabel: string
   taxNote: string | null
-  lines: Array<{ unitPrice: string | null; total: string | null }>
+  lines: Array<{
+    unitPrice: string | null
+    total: string | null
+    tax?: string | null
+    totalIncludingTax?: string | null
+  }>
 }
+
+/** A line the quote's tax result says nothing about; see `lib/lineTaxPresentation.ts`. */
+const NO_LINE_TAX = '—'
 
 type PublicQuoteResponse = {
   /**
@@ -59,6 +70,7 @@ type PublicQuoteResponse = {
       netPerReference?: string | null
     } | null
     currencyCode: string
+    totalNetAmount: string
     totalGrossAmount: string
   }>
   isExpired: boolean
@@ -152,6 +164,10 @@ export default function QuotePublicPage({ params }: { params: { token: string } 
     )
   }
 
+  // A US market shows one price per row plus a separate tax line; there is no net/gross twin of
+  // anything, and the totals below form a column that adds up.
+  const singlePricePlusTax = data.display?.singlePricePlusTax === true
+
   return (
     <main className="mx-auto max-w-3xl p-6 space-y-6">
       <header className="space-y-1">
@@ -203,10 +219,44 @@ export default function QuotePublicPage({ params }: { params: { token: string } 
                 ) : null}
               </div>
               <div className="text-right text-sm">
-                <p>
-                  {data.display?.lines[lineIndex]?.total
-                    ?? `${line.totalGrossAmount} ${line.currencyCode}`}
-                </p>
+                {singlePricePlusTax ? (
+                  <dl className="space-y-0.5">
+                    {data.display?.lines[lineIndex]?.unitPrice ? (
+                      <div className="flex justify-end gap-2">
+                        <dt className="text-muted-foreground">
+                          {t('sales.documents.usPresentation.items.price', 'Price')}
+                        </dt>
+                        <dd>{data.display?.lines[lineIndex]?.unitPrice}</dd>
+                      </div>
+                    ) : null}
+                    <div className="flex justify-end gap-2">
+                      <dt className="text-muted-foreground">
+                        {t('sales.documents.usPresentation.items.lineTotal', 'Line total')}
+                      </dt>
+                      <dd>
+                        {data.display?.lines[lineIndex]?.total
+                          ?? `${line.totalNetAmount} ${line.currencyCode}`}
+                      </dd>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <dt className="text-muted-foreground">
+                        {t('sales.documents.usPresentation.items.tax', 'Tax')}
+                      </dt>
+                      <dd>{data.display?.lines[lineIndex]?.tax ?? NO_LINE_TAX}</dd>
+                    </div>
+                    <div className="flex justify-end gap-2 font-medium">
+                      <dt className="text-muted-foreground">
+                        {t('sales.documents.usPresentation.items.totalIncludingTax', 'Total including tax')}
+                      </dt>
+                      <dd>{data.display?.lines[lineIndex]?.totalIncludingTax ?? NO_LINE_TAX}</dd>
+                    </div>
+                  </dl>
+                ) : (
+                  <p>
+                    {data.display?.lines[lineIndex]?.total
+                      ?? `${line.totalGrossAmount} ${line.currencyCode}`}
+                  </p>
+                )}
               </div>
             </div>
           ))}
@@ -217,20 +267,23 @@ export default function QuotePublicPage({ params }: { params: { token: string } 
         <h2 className="font-medium">{t('sales.quotes.public.totals')}</h2>
         <div className="flex items-center justify-between text-sm">
           <span>
-            {data.display?.singlePricePlusTax
-              ? t('sales.quotes.public.subtotal', 'Subtotal')
-              : t('sales.quotes.public.subtotalGross')}
+            {data.display?.subtotalLabel
+              ?? (singlePricePlusTax
+                ? t('sales.quotes.public.subtotal', 'Subtotal')
+                : t('sales.quotes.public.subtotalGross'))}
           </span>
           <span>
             {data.display?.subtotal ?? `${data.quote.subtotalGrossAmount} ${data.quote.currencyCode}`}
           </span>
         </div>
-        <div className="flex items-center justify-between text-sm">
-          <span>{t('sales.quotes.public.discount')}</span>
-          <span>
-            {data.display?.discountTotal ?? `${data.quote.discountTotalAmount} ${data.quote.currencyCode}`}
-          </span>
-        </div>
+        {singlePricePlusTax && !data.display?.discountTotal ? null : (
+          <div className="flex items-center justify-between text-sm">
+            <span>{data.display?.discountLabel ?? t('sales.quotes.public.discount')}</span>
+            <span>
+              {data.display?.discountTotal ?? `${data.quote.discountTotalAmount} ${data.quote.currencyCode}`}
+            </span>
+          </div>
+        )}
         <div className="flex items-start justify-between text-sm">
           <span>
             {data.display?.taxLabel ?? t('sales.quotes.public.tax')}
@@ -243,7 +296,7 @@ export default function QuotePublicPage({ params }: { params: { token: string } 
           </span>
         </div>
         <div className="flex items-center justify-between font-medium">
-          <span>{t('sales.quotes.public.total')}</span>
+          <span>{data.display?.totalLabel ?? t('sales.quotes.public.total')}</span>
           <span>
             {data.display?.grandTotal ?? `${data.quote.grandTotalGrossAmount} ${data.quote.currencyCode}`}
           </span>
