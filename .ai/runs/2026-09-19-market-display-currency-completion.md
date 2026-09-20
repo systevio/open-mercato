@@ -69,4 +69,4 @@ Recover the cancelled implementation and complete every first-party OSS money pr
 
 ### Phase 4: Verification and review
 
-- [ ] 4.1 Run the full gate, autofix review, and UI evidence pass (full configured gate passed at fb54a92b2; review and UI evidence pending)
+- [x] 4.1 Run the full gate, autofix review, and UI evidence pass — aead4413d (all eight configured commands passed with explicit statuses; the isolated production browser scenario and tenancy check passed, with desktop evidence captured; manual mobile verification remains blocked by a dev-mode login HTTP 500 and is reported as a QA limit)
