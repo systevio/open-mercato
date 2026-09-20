@@ -1,6 +1,6 @@
 # Lessons
 
-This catalog indexes 141 focused lessons. Route the task first, then read only records whose modules, areas, or topics match the work.
+This catalog indexes 142 focused lessons. Route the task first, then read only records whose modules, areas, or topics match the work.
 
 ## How to use this catalog
 
@@ -166,6 +166,7 @@ This catalog indexes 141 focused lessons. Route the task first, then read only r
 
 ### testing
 
+- [Validation gates must verify every command and isolate ancestry-sensitive temp fixtures](lessons/validation-gates-must-verify-every-command-and-isolate-temp-fixtures.md) — area:testing,debugging; module:platform,cli; topic:testing,command-pattern
 - [Determine super-admin via the immutable `isSuperAdmin` flag, never by role name](lessons/determine-super-admin-via-the-immutable-issuperadmin.md) — area:testing,module-data,debugging; module:auth,events; topic:access-control,command-pattern,data-scoping
 - [Enqueue then stamp](lessons/enqueue-then-stamp.md) — area:testing; module:events; topic:events,workers
 - [Integration routing tests must establish the route they claim to cover](lessons/integration-routing-tests-must-establish-the-route-they-claim-to-cover.md) — area:testing,integration,debugging; module:search,query_index; topic:async-indexing,polling,query-index,route-coverage
