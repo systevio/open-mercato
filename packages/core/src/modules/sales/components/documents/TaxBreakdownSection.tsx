@@ -129,9 +129,11 @@ export function TaxBreakdownSection({
   // The line above is translated per failure code, so it can only ever say
   // "declined" — never why. The provider's own messages carry the reason the
   // merchant has to act on, and they are shown verbatim because no locale file
-  // can hold a third party's vocabulary.
+  // can hold a third party's vocabulary. Only the core entry is dropped, and it
+  // is recognised by its text rather than its code: a provider is free to label
+  // its own reason `unsupported` too, and that reason must still be read.
   const providerMessages = (taxInfo?.messages ?? []).filter(
-    (message) => Boolean(message?.text?.trim()) && message?.code !== failure?.code
+    (message) => Boolean(message?.text?.trim()) && message?.text !== failure?.message
   )
 
   return (
