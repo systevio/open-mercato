@@ -287,7 +287,7 @@ contact ──► addresses ──► delivery ──► payment ──► revie
 
 Steps are skippable by configuration: a digital-only cart skips `delivery`; a known logged-in buyer with one address skips `contact` and `addresses`; purchase on account skips gateway selection in `payment` but not the step (PO number is captured there).
 
-Backward navigation is always allowed before submit. Changing an address after selecting delivery **invalidates the rate quote** and returns the buyer to `delivery` with the reason stated — a stale rate is a shipping cost the merchant absorbs.
+Backward navigation is always allowed before submit. Changing an address after selecting delivery **invalidates the rate quote** and returns the buyer to `delivery` with the reason stated — a stale rate is a shipping cost the merchant absorbs. When a tax provider is configured, tax can depend on the shipping address as well (`2026-10-03-tax-providers-roadmap.md`, ADR-3); under the default state `product-rate` nothing changes. The lock's re-price (§6) computes the figure the buyer confirms; whether the funnel shows a tax estimate at the address step before that is proposed to the owners of this spec in that roadmap (§14 Q16, amendment 6a) and is not decided here.
 
 ---
 
@@ -737,6 +737,10 @@ Named here so a later reader does not look for them: **R1** (payment captured wi
 ## 21) Changelog
 
 - **§20 user story map added.** The spec described a step machine, a submit sequence and a risk register but never stated who wanted what, so a prototype had to infer the flow from a numbered procedure. Five epics derived from §5.2, §6, §7, §8 and §15; no new scope. The four risks with no screen of their own are named as such rather than left to look missing. The changelog moves from §20 to §21.
+
+### 2026-10-12 — tax providers (pointer, no version change)
+
+Two sentences in §5.2: when a tax provider is configured, tax can depend on the shipping address as well, and the lock's re-price (§6) computes the figure the buyer confirms; under the default state `product-rate` nothing changes. Whether the funnel shows a tax estimate at the address step is proposed to the owners of this spec in the tax-providers roadmap (`2026-10-03-tax-providers-roadmap.md`, in review as #6918; its §14 Q16) and is not decided here.
 
 ### 2026-09-16 — v2.2 (workflow boundary restated)
 
